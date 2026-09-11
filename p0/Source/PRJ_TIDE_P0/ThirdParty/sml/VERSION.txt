@@ -1,0 +1,5 @@
+source: https://github.com/boost-ext/sml.git
+branch: main
+commit: 980e397ac67631b3250b55ce4926691cb8811b10 (2026-05-18)
+describe: v1.1.13-10-g980e397 (10 commits after the v1.1.13 tag; not an official release)
+vendored files: include/, CMakeLists.txt, LICENSE.md, README.md only (test/, example/, benchmark/, doc/, zephyr/ removed)
