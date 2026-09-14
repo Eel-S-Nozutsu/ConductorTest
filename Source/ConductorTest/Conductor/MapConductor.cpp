@@ -63,7 +63,7 @@ void UMapConductor::StopConductor()
 	bStarted = false;
 }
 
-void UMapConductor::TickConductor(float DeltaSeconds, float EvaluateInterval)
+void UMapConductor::TickConductor(float DeltaSeconds)
 {
 	if (!bStarted) return;
 
@@ -74,7 +74,7 @@ void UMapConductor::TickConductor(float DeltaSeconds, float EvaluateInterval)
 
 	for (const TObjectPtr<UContentConductor>& Conductor : ContentConductors)
 	{
-		Conductor->TickConductor(DeltaSeconds, EvaluateInterval);
+		Conductor->TickConductor(DeltaSeconds);
 	}
 }
 

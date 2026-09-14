@@ -59,7 +59,7 @@ void UContentConductor::StopConductor()
 	bStarted = false;
 }
 
-void UContentConductor::TickConductor(float DeltaSeconds, float EvaluateInterval)
+void UContentConductor::TickConductor(float DeltaSeconds)
 {
 	if (!bStarted) return;
 
@@ -73,14 +73,6 @@ void UContentConductor::TickConductor(float DeltaSeconds, float EvaluateInterval
 	{
 		Module->TickModule(DeltaSeconds);
 	}
-
-	EvaluateAccumulator += DeltaSeconds;
-	if (EvaluateAccumulator < EvaluateInterval) return;
-
-	// 誤差の累積防止で超過分は次サイクルへ繰り越す
-	EvaluateAccumulator = EvaluateInterval > 0.0f
-							? FMath::Fmod(EvaluateAccumulator, EvaluateInterval)
-							: 0.0f;
 
 	EvaluateTransitions();
 }
@@ -182,8 +174,6 @@ void UContentConductor::EnterPhase(FName NewPhase)
 	}
 
 	BuildConditions(*PhaseRow);
-
-	EvaluateAccumulator = 0.0f;
 
 	UE_LOG(LogTemp, Log, TEXT("[Conductor] %s: フェーズ %s -> %s"), *ContentId.ToString(), *OldPhase.ToString(), *NewPhase.ToString());
 

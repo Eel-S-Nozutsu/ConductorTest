@@ -25,7 +25,7 @@ class CONDUCTORTEST_API UContentConductor : public UConductorObjectBase
 public:
 	void StartConductor(FName InContentId, const FContentConductorRow& Row);
 	void StopConductor();
-	void TickConductor(float DeltaSeconds, float EvaluateInterval);
+	void TickConductor(float DeltaSeconds);
 
 	UFUNCTION(BlueprintPure)
 	FName GetCurrentPhase() const { return CurrentPhase; }
@@ -87,8 +87,6 @@ private:
 	FName ContentId;
 	FName CurrentPhase;
 	FName PendingPhase;
-
-	float EvaluateAccumulator = 0.0f;
 
 	bool bStarted	   = false;
 	bool bPhasePending = false;

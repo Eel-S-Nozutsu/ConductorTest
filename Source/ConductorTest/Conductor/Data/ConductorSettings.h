@@ -23,8 +23,4 @@ public:
 	// マップコンダクタの設定
 	UPROPERTY(EditAnywhere, Config, meta = (DisplayName = "レベル紐づけ"))
 	TSoftObjectPtr<UDataTable> MapConductorTable;
-
-	// 遷移条件評価の間隔
-	UPROPERTY(EditAnywhere, Config, meta = (DisplayName = "条件評価の間隔(秒)", ClampMin = "0.0"))
-	float ConditionEvaluateInterval = 0.1f;
 };

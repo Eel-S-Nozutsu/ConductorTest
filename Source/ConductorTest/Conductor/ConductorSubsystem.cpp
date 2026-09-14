@@ -60,11 +60,9 @@ void UConductorSubsystem::Tick(float DeltaTime)
 
 	if (MapConductors.IsEmpty()) return;
 
-	const float EvaluateInterval = UConductorSettings::Get()->ConditionEvaluateInterval;
-
 	for (const TObjectPtr<UMapConductor>& Conductor : MapConductors)
 	{
-		Conductor->TickConductor(DeltaTime, EvaluateInterval);
+		Conductor->TickConductor(DeltaTime);
 	}
 }
 

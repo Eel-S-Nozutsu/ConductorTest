@@ -22,7 +22,7 @@ class CONDUCTORTEST_API UMapConductor : public UConductorObjectBase
 public:
 	void StartConductor(const FMapConductorRow& Row, FName InLevelPackageName);
 	void StopConductor();
-	void TickConductor(float DeltaSeconds, float EvaluateInterval);
+	void TickConductor(float DeltaSeconds);
 
 	UFUNCTION(BlueprintCallable)
 	UContentConductor* FindContentConductor(FName ContentId) const;
