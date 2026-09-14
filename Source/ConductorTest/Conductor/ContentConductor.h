@@ -63,7 +63,7 @@ private:
 	void ValidateTables(FName InitialPhaseName) const;
 
 	void ApplyActorsForPhase(FName Phase);
-	void ApplyState(FName ActorId, const FConductorActorRow& ActorRow, EConductorActorState State);
+	void ApplyState(FName ActorId, EConductorActorState State);
 	AActor* ResolvePlacedActor(FName ActorId);
 	void ScanPlacedActors();
 

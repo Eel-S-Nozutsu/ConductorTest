@@ -107,7 +107,7 @@ void UConductorSubsystem::TryCreateMapConductor(const ULevel* Level)
 	const FName LevelPackageName = MakeLevelPackageName(Level);
 	if (LevelPackageName.IsNone()) return;
 
-	// 二重起動の防止
+	// 二重イベント発火の防止
 	const bool bAlreadyRunning = MapConductors.ContainsByPredicate(
 		[&](const TObjectPtr<UMapConductor>& Conductor)
 		{
@@ -115,18 +115,28 @@ void UConductorSubsystem::TryCreateMapConductor(const ULevel* Level)
 		});
 	if (bAlreadyRunning) return;
 
+	bool bCreated = false;
+
 	MapConductorTable->ForeachRow<FMapConductorRow>(
 		TEXT("UConductorSubsystem::TryCreateMapConductor"),
-		[&](const FName&, const FMapConductorRow& Row)
+		[&](const FName& RowName, const FMapConductorRow& Row)
 		{
 			const FName RowLevel = FName(*Row.Level.ToSoftObjectPath().GetLongPackageName());
 			if (RowLevel != LevelPackageName) return;
+
+			if (bCreated)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[Conductor] レベル %s を指す行が複数あります (行 %s は無視)"), *LevelPackageName.ToString(), *RowName.ToString());
+				return;
+			}
 
 			UClass* ConductorClass	 = UMapConductor::StaticClass();
 			UMapConductor* Conductor = NewObject<UMapConductor>(this, ConductorClass);
 			MapConductors.Add(Conductor);
 
 			Conductor->StartConductor(Row, LevelPackageName);
+
+			bCreated = true;
 		});
 }
 

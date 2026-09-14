@@ -42,9 +42,11 @@ void UContentConductor::StopConductor()
 {
 	if (!bStarted) return;
 
+	ClearConditions();
+
 	for (const TObjectPtr<UContentConductorModule>& Module : Modules)
 	{
-		if (CurrentPhase.IsValid())
+		if (!CurrentPhase.IsNone())
 		{
 			Module->ExitPhase(CurrentPhase);
 		}
@@ -75,7 +77,11 @@ void UContentConductor::TickConductor(float DeltaSeconds, float EvaluateInterval
 	EvaluateAccumulator += DeltaSeconds;
 	if (EvaluateAccumulator < EvaluateInterval) return;
 
-	EvaluateAccumulator = 0.0f;
+	// 誤差の累積防止で超過分は次サイクルへ繰り越す
+	EvaluateAccumulator = EvaluateInterval > 0.0f
+							? FMath::Fmod(EvaluateAccumulator, EvaluateInterval)
+							: 0.0f;
+
 	EvaluateTransitions();
 }
 
@@ -110,13 +116,13 @@ AActor* UContentConductor::FindManagedActor(FName ActorId)
 TArray<AActor*> UContentConductor::GetGroupActors(FName GroupId)
 {
 	TArray<AActor*> Actors;
-	if (!ActorTable) return Actors;
+	if (!ActorTable || GroupId.IsNone()) return Actors;
 
 	ActorTable->ForeachRow<FConductorActorRow>(
 		TEXT("UContentDirector::GetGroupActors"),
 		[&](const FName& RowName, const FConductorActorRow& Row)
 		{
-			if (GroupId.IsNone() || Row.GroupId != GroupId) return;
+			if (Row.GroupId != GroupId) return;
 
 			if (AActor* Actor = FindManagedActor(RowName)) // ActorId = RowName
 			{
@@ -160,7 +166,7 @@ void UContentConductor::EnterPhase(FName NewPhase)
 	// 2. アクターのポップ状態
 	ApplyActorsForPhase(NewPhase);
 
-	// 3. フェーズ開始のアクション実行
+	// 3. フェーズ開始のアクション実行 (現状同期前提)
 	for (const TSubclassOf<UConductorPhaseAction>& ActionClass : PhaseRow->EntryActions)
 	{
 		if (!ActionClass) continue;
@@ -189,18 +195,31 @@ void UContentConductor::EvaluateTransitions()
 	const FContentConductorPhaseRow* PhaseRow = FindPhaseRow(CurrentPhase);
 	if (!PhaseRow) return;
 
-	check(PhaseConditions.Num() == PhaseRow->Transitions.Num());
-
-	// 配列順=優先度とする 最初にtrueになったConditionを採用
-	for (int32 Index = 0; Index < PhaseConditions.Num(); ++Index)
+	if (!ensureMsgf(PhaseConditions.Num() == PhaseRow->Transitions.Num(),
+					TEXT("[Conductor] %s: フェーズ %s の条件数(%d)と遷移数(%d)が不一致"),
+					*ContentId.ToString(),
+					*CurrentPhase.ToString(),
+					PhaseConditions.Num(),
+					PhaseRow->Transitions.Num()))
 	{
-		if (!PhaseConditions[Index] || !PhaseConditions[Index]->Evaluate()) continue;
-
-		const FName NextPhase = PhaseRow->Transitions[Index].NextPhase;
-
-		EnterPhase(NextPhase);
 		return;
 	}
+
+	// 1. 決定のみ 配列順=優先度とする (最初にtrueになったConditionを採用)
+	int32 TransitionIndex = INDEX_NONE;
+	for (int32 Index = 0; Index < PhaseConditions.Num(); ++Index)
+	{
+		if (PhaseConditions[Index] && PhaseConditions[Index]->Evaluate())
+		{
+			TransitionIndex = Index;
+			break;
+		}
+	}
+
+	if (TransitionIndex == INDEX_NONE) return;
+
+	// 2. ループを抜けてから適用
+	EnterPhase(PhaseRow->Transitions[TransitionIndex].NextPhase);
 }
 
 void UContentConductor::BuildConditions(const FContentConductorPhaseRow& PhaseRow)
@@ -253,9 +272,7 @@ void UContentConductor::ValidateTables(FName InitialPhaseName) const
 
 void UContentConductor::ApplyActorsForPhase(FName Phase)
 {
-	TArray<AActor*> Actors;
 	if (!ActorTable) return;
-
 
 	ActorTable->ForeachRow<FConductorActorRow>(
 		TEXT("UContentDirector::ApplyActorsForPhase"),
@@ -267,14 +284,13 @@ void UContentConductor::ApplyActorsForPhase(FName Phase)
 					return Entry.Phase == Phase;
 				});
 
-			const EConductorActorState State = Entry ? Entry->State : EConductorActorState::Active;
+			if (!Entry) return;
 
-			ApplyState(RowName, Row, State); // RowName = ActorId
+			ApplyState(RowName, Entry->State); // RowName = ActorId
 		});
 }
 
-void UContentConductor::ApplyState(
-	FName ActorId, const FConductorActorRow& ActorRow, EConductorActorState State)
+void UContentConductor::ApplyState(FName ActorId, EConductorActorState State)
 {
 	if (State == EConductorActorState::Removed)
 	{
