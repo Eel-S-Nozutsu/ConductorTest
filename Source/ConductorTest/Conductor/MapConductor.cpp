@@ -4,8 +4,8 @@
 
 #include "Conductor/ContentConductor.h"
 #include "Conductor/ConductorModule.h"
-#include "Conductor/MapConductorRow.h"
-#include "Conductor/ContentConductorRow.h"
+#include "Conductor/Data/MapConductorRow.h"
+#include "Conductor/Data/ContentConductorRow.h"
 
 void UMapConductor::StartConductor(const FMapConductorRow& Row, FName InLevelPackageName)
 {

@@ -10,7 +10,7 @@ class UContentConductor;
 class UMapConductor;
 
 /**
- * ハードコードする場所
+ * コンダクタにロジックを差し込む拡張部品
  */
 UCLASS(Abstract, Blueprintable, BlueprintType)
 class CONDUCTORTEST_API UConductorModuleBase : public UConductorObjectBase
@@ -34,7 +34,7 @@ protected:
 };
 
 /**
- * 
+ * 1レベル単位のモジュール
  */
 UCLASS(Abstract, Blueprintable, BlueprintType)
 class CONDUCTORTEST_API UMapConductorModule : public UConductorModuleBase
@@ -47,7 +47,7 @@ public:
 };
 
 /**
- * 
+ * 1コンテンツ単位のモジュール
  */
 UCLASS(Abstract, Blueprintable, BlueprintType)
 class CONDUCTORTEST_API UContentConductorModule : public UConductorModuleBase

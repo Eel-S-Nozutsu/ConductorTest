@@ -3,9 +3,9 @@
 #include "ConductorSubsystem.h"
 
 #include "Conductor/MapConductor.h"
-#include "Conductor/MapConductorRow.h"
 #include "Conductor/ContentConductor.h"
-#include "Conductor/ConductorSettings.h"
+#include "Conductor/Data/MapConductorRow.h"
+#include "Conductor/Data/ConductorSettings.h"
 
 bool UConductorSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
