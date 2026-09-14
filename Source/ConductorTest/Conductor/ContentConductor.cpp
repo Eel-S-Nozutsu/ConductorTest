@@ -23,6 +23,16 @@
 		}                                                                                                             \
 	}
 
+#define UE_SCREEN_LOG_WARNING(WorldContextObject, Format, ...)                                                             \
+	{                                                                                                                      \
+		FString WarningMessage = FString::Printf(Format, ##__VA_ARGS__);                                                   \
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *WarningMessage);                                                             \
+		if (GEngine)                                                                                                       \
+		{                                                                                                                  \
+			UKismetSystemLibrary::PrintString(WorldContextObject, WarningMessage, true, true, FLinearColor::Yellow, 2.0f); \
+		}                                                                                                                  \
+	}
+
 void UContentConductor::StartConductor(FName InContentId, const FContentConductorRow& Row)
 {
 	ContentId	  = InContentId;
@@ -322,7 +332,122 @@ const FContentConductorPhase* UContentConductor::FindPhase(FName Phase) const
 
 void UContentConductor::ValidateData() const
 {
-	// todo: ここで警告かエラー出したい
+	const FString Content = ContentId.ToString();
+
+	if (!PhaseSet)
+	{
+		UE_SCREEN_LOG_ERROR(this, TEXT("%s: PhaseSetが未設定"), *Content);
+		return;
+	}
+
+	if (PhaseSet->Phases.IsEmpty())
+	{
+		UE_SCREEN_LOG_ERROR(this, TEXT("%s: フェーズ定義が空"), *Content);
+		return;
+	}
+
+	if (!PhaseSet->Phases.Contains(PhaseSet->InitialPhase))
+	{
+		UE_SCREEN_LOG_ERROR(this, TEXT("%s: 開始フェーズ %s が定義に無い"), *Content, *PhaseSet->InitialPhase.ToString());
+	}
+
+	for (const TPair<FName, FContentConductorPhase>& Pair : PhaseSet->Phases)
+	{
+		const FString Phase = Pair.Key.ToString();
+
+		for (int32 Index = 0; Index < Pair.Value.EntryActions.Num(); ++Index)
+		{
+			if (Pair.Value.EntryActions[Index]) continue;
+
+			UE_SCREEN_LOG_WARNING(this, TEXT("%s/%s: アクション[%d]が未設定"), *Content, *Phase, Index);
+		}
+
+		for (int32 Index = 0; Index < Pair.Value.Transitions.Num(); ++Index)
+		{
+			const FConductorPhaseTransition& Transition = Pair.Value.Transitions[Index];
+
+			if (!Transition.Condition)
+			{
+				UE_SCREEN_LOG_WARNING(this, TEXT("%s/%s: 遷移[%d]の条件が未設定 (永遠に成立しない)"), *Content, *Phase, Index);
+			}
+
+			if (Transition.NextPhase.IsNone())
+			{
+				UE_SCREEN_LOG_WARNING(this, TEXT("%s/%s: 遷移[%d]の遷移先が未設定"), *Content, *Phase, Index);
+			}
+			else if (!PhaseSet->Phases.Contains(Transition.NextPhase))
+			{
+				UE_SCREEN_LOG_ERROR(this, TEXT("%s/%s: 遷移[%d]の遷移先 %s が定義に無い (入ると停止する)"), *Content, *Phase, Index, *Transition.NextPhase.ToString());
+			}
+		}
+	}
+
+	// InitialPhaseから辿れるか
+	TSet<FName> Reached;
+	TArray<FName> Pending;
+
+	if (PhaseSet->Phases.Contains(PhaseSet->InitialPhase))
+	{
+		Reached.Add(PhaseSet->InitialPhase);
+		Pending.Add(PhaseSet->InitialPhase);
+	}
+
+	while (!Pending.IsEmpty())
+	{
+		const FContentConductorPhase& PhaseDef = PhaseSet->Phases.FindChecked(Pending.Pop());
+
+		for (const FConductorPhaseTransition& Transition : PhaseDef.Transitions)
+		{
+			if (!PhaseSet->Phases.Contains(Transition.NextPhase)) continue;
+
+			bool bAlready = false;
+			Reached.Add(Transition.NextPhase, &bAlready);
+			if (bAlready) continue;
+
+			Pending.Add(Transition.NextPhase);
+		}
+	}
+
+	for (const TPair<FName, FContentConductorPhase>& Pair : PhaseSet->Phases)
+	{
+		if (Reached.Contains(Pair.Key)) continue;
+
+		UE_SCREEN_LOG_WARNING(this, TEXT("%s: フェーズ %s への経路が無い (RequestPhase専用なら問題なし)"), *Content, *Pair.Key.ToString());
+	}
+
+	if (!ActorTable) return;
+
+	ActorTable->ForeachRow<FConductorActorRow>(
+		TEXT("UContentConductor::ValidateData"),
+		[&](const FName& RowName, const FConductorActorRow& Row)
+		{
+			const FString Actor = RowName.ToString();
+
+			if (Row.SpawnClass && Row.SpawnPointId.IsNone())
+			{
+				UE_SCREEN_LOG_WARNING(this, TEXT("%s/%s: 生成位置が未設定 (原点に出る)"), *Content, *Actor);
+			}
+
+			if (!Row.SpawnClass && !Row.SpawnPointId.IsNone())
+			{
+				UE_SCREEN_LOG_WARNING(this, TEXT("%s/%s: 配置アクターなのに生成位置が設定されている"), *Content, *Actor);
+			}
+
+			TSet<FName> Seen;
+			for (const FConductorActorPhaseEntry& Entry : Row.Phases)
+			{
+				if (!PhaseSet->Phases.Contains(Entry.Phase))
+				{
+					UE_SCREEN_LOG_WARNING(this, TEXT("%s/%s: フェーズ %s が定義に無い (適用されない)"), *Content, *Actor, *Entry.Phase.ToString());
+				}
+
+				bool bAlready = false;
+				Seen.Add(Entry.Phase, &bAlready);
+				if (!bAlready) continue;
+
+				UE_SCREEN_LOG_WARNING(this, TEXT("%s/%s: フェーズ %s の指定が重複 (先頭のみ有効)"), *Content, *Actor, *Entry.Phase.ToString());
+			}
+		});
 }
 
 void UContentConductor::ApplyActorsForPhase(FName Phase)
