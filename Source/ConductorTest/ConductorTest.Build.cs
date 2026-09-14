@@ -1,4 +1,4 @@
-// Copyright (c) 2026, S.Nozutsu EelGameStudio, Inc. All Rights Reserved.
+﻿// Copyright (c) 2026, S.Nozutsu EelGameStudio, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -14,11 +14,18 @@ public class ConductorTest : ModuleRules
 			"Engine",
 			"InputCore",
             "GameplayTags",
-			"DeveloperSettings"
+			"DeveloperSettings",
+			"ImGui"
 			]);
 
 		PrivateDependencyModuleNames.AddRange([
 			]);
+
+		// FEditorDelegates::EndPIE (ImGuiDebugSubsystem) 用
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
 
 		PublicIncludePaths.Add(Target.ProjectFile.GetFileNameWithoutExtension());
 	}
