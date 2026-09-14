@@ -7,7 +7,7 @@
 #include "Conductor/ConductorCondition.h"
 #include "Conductor/ConductorIdComponent.h"
 #include "Conductor/Data/ContentConductorRow.h"
-#include "Conductor/Data/ContentConductorPhaseRow.h"
+#include "Conductor/Data/ContentConductorPhaseSet.h"
 
 #include "EngineUtils.h"
 
@@ -15,7 +15,7 @@ void UContentConductor::StartConductor(FName InContentId, const FContentConducto
 {
 	ContentId = InContentId;
 
-	PhaseTable = Row.PhaseTable.LoadSynchronous();
+	PhaseSet   = Row.PhaseSet.LoadSynchronous();
 	ActorTable = Row.ActorTable.LoadSynchronous();
 
 	ValidateTables(Row.InitialPhase);
@@ -148,10 +148,10 @@ void UContentConductor::EnterPhase(FName NewPhase)
 		return;
 	}
 
-	const FContentConductorPhaseRow* PhaseRow = FindPhaseRow(NewPhase);
-	if (!PhaseRow)
+	const FContentConductorPhase* PhaseDef = FindPhase(NewPhase);
+	if (!PhaseDef)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Conductor] %s: フェーズ %s の行がDTに無い"), *ContentId.ToString(), *NewPhase.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[Conductor] %s: フェーズ %s が DataAsset に無い"), *ContentId.ToString(), *NewPhase.ToString());
 		return;
 	}
 
@@ -159,11 +159,11 @@ void UContentConductor::EnterPhase(FName NewPhase)
 	ApplyActorsForPhase(NewPhase);
 
 	// 3. フェーズ開始のアクション実行 (現状同期前提)
-	for (const TSubclassOf<UConductorPhaseAction>& ActionClass : PhaseRow->EntryActions)
+	for (const TObjectPtr<UConductorPhaseAction>& ActionTemplate : PhaseDef->EntryActions)
 	{
-		if (!ActionClass) continue;
+		if (!ActionTemplate) continue;
 
-		UConductorPhaseAction* Action = NewObject<UConductorPhaseAction>(this, ActionClass);
+		UConductorPhaseAction* Action = DuplicateObject<UConductorPhaseAction>(ActionTemplate, this);
 		Action->Execute(this);
 	}
 
@@ -173,7 +173,7 @@ void UContentConductor::EnterPhase(FName NewPhase)
 		Module->EnterPhase(NewPhase);
 	}
 
-	BuildConditions(*PhaseRow);
+	BuildConditions(*PhaseDef);
 
 	UE_LOG(LogTemp, Log, TEXT("[Conductor] %s: フェーズ %s -> %s"), *ContentId.ToString(), *OldPhase.ToString(), *NewPhase.ToString());
 
@@ -182,15 +182,15 @@ void UContentConductor::EnterPhase(FName NewPhase)
 
 void UContentConductor::EvaluateTransitions()
 {
-	const FContentConductorPhaseRow* PhaseRow = FindPhaseRow(CurrentPhase);
-	if (!PhaseRow) return;
+	const FContentConductorPhase* PhaseDef = FindPhase(CurrentPhase);
+	if (!PhaseDef) return;
 
-	if (!ensureMsgf(PhaseConditions.Num() == PhaseRow->Transitions.Num(),
+	if (!ensureMsgf(PhaseConditions.Num() == PhaseDef->Transitions.Num(),
 					TEXT("[Conductor] %s: フェーズ %s の条件数(%d)と遷移数(%d)が不一致"),
 					*ContentId.ToString(),
 					*CurrentPhase.ToString(),
 					PhaseConditions.Num(),
-					PhaseRow->Transitions.Num()))
+					PhaseDef->Transitions.Num()))
 	{
 		return;
 	}
@@ -209,20 +209,20 @@ void UContentConductor::EvaluateTransitions()
 	if (TransitionIndex == INDEX_NONE) return;
 
 	// 2. ループを抜けてから適用
-	EnterPhase(PhaseRow->Transitions[TransitionIndex].NextPhase);
+	EnterPhase(PhaseDef->Transitions[TransitionIndex].NextPhase);
 }
 
-void UContentConductor::BuildConditions(const FContentConductorPhaseRow& PhaseRow)
+void UContentConductor::BuildConditions(const FContentConductorPhase& PhaseDef)
 {
 	ClearConditions();
 
-	for (const FConductorPhaseTransition& Transition : PhaseRow.Transitions)
+	for (const FConductorPhaseTransition& Transition : PhaseDef.Transitions)
 	{
 		// 添字を合わせたいので詰める
 		UConductorCondition* Condition = nullptr;
 		if (Transition.Condition)
 		{
-			Condition = NewObject<UConductorCondition>(this, Transition.Condition);
+			Condition = DuplicateObject<UConductorCondition>(Transition.Condition, this);
 		}
 
 		PhaseConditions.Add(Condition);
@@ -247,12 +247,11 @@ void UContentConductor::ClearConditions()
 	PhaseConditions.Reset();
 }
 
-const FContentConductorPhaseRow* UContentConductor::FindPhaseRow(FName Phase) const
+const FContentConductorPhase* UContentConductor::FindPhase(FName Phase) const
 {
-	if (!PhaseTable) return nullptr;
+	if (!PhaseSet) return nullptr;
 
-	return PhaseTable->FindRow<FContentConductorPhaseRow>(
-		Phase, TEXT("UContentConductor::FindPhaseRow"), false);
+	return PhaseSet->Phases.Find(Phase);
 }
 
 void UContentConductor::ValidateTables(FName InitialPhaseName) const

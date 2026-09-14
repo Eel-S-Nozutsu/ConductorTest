@@ -9,8 +9,9 @@
 
 class UContentConductorModule;
 class UConductorCondition;
+class UContentConductorPhaseSet;
 struct FContentConductorRow;
-struct FContentConductorPhaseRow;
+struct FContentConductorPhase;
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnContentPhaseChanged, UContentConductor*, FName, FName);
 
@@ -56,9 +57,9 @@ private:
 	void EnterPhase(FName NewPhase);
 	void EvaluateTransitions();
 
-	void BuildConditions(const FContentConductorPhaseRow& PhaseRow);
+	void BuildConditions(const FContentConductorPhase& PhaseDef);
 	void ClearConditions();
-	const FContentConductorPhaseRow* FindPhaseRow(FName Phase) const;
+	const FContentConductorPhase* FindPhase(FName Phase) const;
 
 	void ValidateTables(FName InitialPhaseName) const;
 
@@ -73,7 +74,7 @@ private:
 	void DestroyAllSpawned();
 
 	UPROPERTY()
-	TObjectPtr<UDataTable> PhaseTable;
+	TObjectPtr<UContentConductorPhaseSet> PhaseSet;
 
 	UPROPERTY()
 	TObjectPtr<UDataTable> ActorTable;

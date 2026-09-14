@@ -12,7 +12,7 @@ class UContentConductor;
 /**
  * フェーズ遷移の条件 真偽を返すのみで副作用は持たない
  */
-UCLASS(Abstract, Blueprintable, BlueprintType)
+UCLASS(Abstract, Blueprintable, BlueprintType, EditInlineNew)
 class CONDUCTORTEST_API UConductorCondition : public UConductorObjectBase
 {
 	GENERATED_BODY()

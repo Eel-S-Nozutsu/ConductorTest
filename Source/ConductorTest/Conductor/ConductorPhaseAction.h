@@ -12,7 +12,7 @@ class UContentConductor;
 /**
  * フェーズ開始時に一度だけ実行する処理
  */
-UCLASS(Abstract, Blueprintable, BlueprintType)
+UCLASS(Abstract, Blueprintable, BlueprintType, EditInlineNew)
 class CONDUCTORTEST_API UConductorPhaseAction : public UConductorObjectBase
 {
 	GENERATED_BODY()
