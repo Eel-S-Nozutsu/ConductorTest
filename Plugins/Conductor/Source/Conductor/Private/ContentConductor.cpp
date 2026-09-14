@@ -2,36 +2,15 @@
 
 #include "ContentConductor.h"
 
-#include "Conductor/ConductorModule.h"
-#include "Conductor/ConductorPhaseAction.h"
-#include "Conductor/ConductorCondition.h"
-#include "Conductor/ConductorIdComponent.h"
-#include "Conductor/Data/ContentConductorRow.h"
-#include "Conductor/Data/ContentConductorPhaseSet.h"
+#include "ConductorModule.h"
+#include "ConductorPhaseAction.h"
+#include "ConductorCondition.h"
+#include "ConductorIdComponent.h"
+#include "Data/ContentConductorRow.h"
+#include "Data/ContentConductorPhaseSet.h"
+#include "ConductorLog.h"
 
 #include "EngineUtils.h"
-#include "Kismet/KismetSystemLibrary.h"
-
-// 後でLog.hとかに移動
-#define UE_SCREEN_LOG_ERROR(WorldContextObject, Format, ...)                                                          \
-	{                                                                                                                 \
-		FString ErrorMessage = FString::Printf(Format, ##__VA_ARGS__);                                                \
-		UE_LOG(LogTemp, Error, TEXT("%s"), *ErrorMessage);                                                            \
-		if (GEngine)                                                                                                  \
-		{                                                                                                             \
-			UKismetSystemLibrary::PrintString(WorldContextObject, ErrorMessage, true, true, FLinearColor::Red, 2.0f); \
-		}                                                                                                             \
-	}
-
-#define UE_SCREEN_LOG_WARNING(WorldContextObject, Format, ...)                                                             \
-	{                                                                                                                      \
-		FString WarningMessage = FString::Printf(Format, ##__VA_ARGS__);                                                   \
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *WarningMessage);                                                             \
-		if (GEngine)                                                                                                       \
-		{                                                                                                                  \
-			UKismetSystemLibrary::PrintString(WorldContextObject, WarningMessage, true, true, FLinearColor::Yellow, 2.0f); \
-		}                                                                                                                  \
-	}
 
 void UContentConductor::StartConductor(FName InContentId, const FContentConductorRow& Row)
 {
@@ -251,7 +230,7 @@ void UContentConductor::EnterPhase(FName NewPhase)
 
 	BuildConditions(*PhaseDef);
 
-	UE_LOG(LogTemp, Log, TEXT("[Conductor] %s: フェーズ %s -> %s"), *ContentId.ToString(), *OldPhase.ToString(), *NewPhase.ToString());
+	UE_LOG(LogConductor, Log, TEXT("[Conductor] %s: フェーズ %s -> %s"), *ContentId.ToString(), *OldPhase.ToString(), *NewPhase.ToString());
 
 	OnPhaseChanged.Broadcast(this, OldPhase, NewPhase);
 }

@@ -10,7 +10,7 @@
  * コンダクタ系UObjectの共通基底
  */
 UCLASS(Abstract)
-class CONDUCTORTEST_API UConductorObjectBase : public UObject
+class CONDUCTOR_API UConductorObjectBase : public UObject
 {
 	GENERATED_BODY()
 

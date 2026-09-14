@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Conductor/ConductorObjectBase.h"
+#include "ConductorObjectBase.h"
 #include "ConductorModule.generated.h"
 
 class UContentConductor;
@@ -13,7 +13,7 @@ class UMapConductor;
  * コンダクタにロジックを差し込む拡張部品
  */
 UCLASS(Abstract, Blueprintable, BlueprintType)
-class CONDUCTORTEST_API UConductorModuleBase : public UConductorObjectBase
+class CONDUCTOR_API UConductorModuleBase : public UConductorObjectBase
 {
 	GENERATED_BODY()
 
@@ -37,7 +37,7 @@ protected:
  * 1レベル単位のモジュール
  */
 UCLASS(Abstract, Blueprintable, BlueprintType)
-class CONDUCTORTEST_API UMapConductorModule : public UConductorModuleBase
+class CONDUCTOR_API UMapConductorModule : public UConductorModuleBase
 {
 	GENERATED_BODY()
 
@@ -50,7 +50,7 @@ public:
  * 1コンテンツ単位のモジュール
  */
 UCLASS(Abstract, Blueprintable, BlueprintType)
-class CONDUCTORTEST_API UContentConductorModule : public UConductorModuleBase
+class CONDUCTOR_API UContentConductorModule : public UConductorModuleBase
 {
 	GENERATED_BODY()
 

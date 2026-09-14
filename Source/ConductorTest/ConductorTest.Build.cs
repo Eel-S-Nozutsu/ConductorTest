@@ -14,8 +14,8 @@ public class ConductorTest : ModuleRules
 			"Engine",
 			"InputCore",
             "GameplayTags",
-			"DeveloperSettings",
-			"ImGui"
+			"ImGui",
+			"Conductor"
 			]);
 
 		PrivateDependencyModuleNames.AddRange([

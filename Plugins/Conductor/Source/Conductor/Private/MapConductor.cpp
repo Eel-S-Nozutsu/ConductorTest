@@ -2,10 +2,11 @@
 
 #include "MapConductor.h"
 
-#include "Conductor/ContentConductor.h"
-#include "Conductor/ConductorModule.h"
-#include "Conductor/Data/MapConductorRow.h"
-#include "Conductor/Data/ContentConductorRow.h"
+#include "ContentConductor.h"
+#include "ConductorModule.h"
+#include "Data/MapConductorRow.h"
+#include "Data/ContentConductorRow.h"
+#include "ConductorLog.h"
 
 void UMapConductor::StartConductor(const FMapConductorRow& Row, FName InLevelPackageName)
 {
@@ -40,7 +41,7 @@ void UMapConductor::StartConductor(const FMapConductorRow& Row, FName InLevelPac
 			Conductor->StartConductor(RowName, ContentRow);
 		});
 
-	UE_LOG(LogTemp, Log, TEXT("[Conductor] %s: MapConductor起動 (コンテンツ %d 件)"), *LevelPackageName.ToString(), ContentConductors.Num());
+	UE_LOG(LogConductor, Log, TEXT("[Conductor] %s: MapConductor起動 (コンテンツ %d 件)"), *LevelPackageName.ToString(), ContentConductors.Num());
 }
 
 void UMapConductor::StopConductor()

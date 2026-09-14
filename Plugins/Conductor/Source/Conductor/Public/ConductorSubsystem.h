@@ -13,7 +13,7 @@ class UMapConductor;
  * 
  */
 UCLASS()
-class CONDUCTORTEST_API UConductorSubsystem : public UTickableWorldSubsystem
+class CONDUCTOR_API UConductorSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 

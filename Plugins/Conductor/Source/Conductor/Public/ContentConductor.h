@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Conductor/ConductorObjectBase.h"
-#include "Conductor/Data/ConductorActorRow.h"
+#include "ConductorObjectBase.h"
+#include "Data/ConductorActorRow.h"
 #include "ContentConductor.generated.h"
 
 class UContentConductorModule;
@@ -19,7 +19,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnContentPhaseChanged, UContentConductor
  * 1コンテンツの進行役
  */
 UCLASS(BlueprintType)
-class CONDUCTORTEST_API UContentConductor : public UConductorObjectBase
+class CONDUCTOR_API UContentConductor : public UConductorObjectBase
 {
 	GENERATED_BODY()
 

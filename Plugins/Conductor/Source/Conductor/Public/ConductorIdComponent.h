@@ -10,7 +10,7 @@
  * コンダクタから名前で指定できるようにする
  */
 UCLASS(meta = (BlueprintSpawnableComponent))
-class CONDUCTORTEST_API UConductorIdComponent : public UActorComponent
+class CONDUCTOR_API UConductorIdComponent : public UActorComponent
 {
 	GENERATED_BODY()
 

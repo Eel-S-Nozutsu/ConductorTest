@@ -25,6 +25,10 @@
 		{
 			"Name": "ImGui",
 			"Enabled": true
+		},
+		{
+			"Name": "Conductor",
+			"Enabled": true
 		}
 	]
 }

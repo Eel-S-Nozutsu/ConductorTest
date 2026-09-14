@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Conductor/ConductorObjectBase.h"
+#include "ConductorObjectBase.h"
 #include "MapConductor.generated.h"
 
 class UContentConductor;
@@ -15,7 +15,7 @@ struct FMapConductorRow;
  * 侵入時にそのレベルに属するContentConductorを生成する
  */
 UCLASS(BlueprintType)
-class CONDUCTORTEST_API UMapConductor : public UConductorObjectBase
+class CONDUCTOR_API UMapConductor : public UConductorObjectBase
 {
 	GENERATED_BODY()
 

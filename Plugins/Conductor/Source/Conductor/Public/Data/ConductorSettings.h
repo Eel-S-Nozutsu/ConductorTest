@@ -11,7 +11,7 @@
  * コンダクタが参照するDTと共通設定
  */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "コンダクター設定"))
-class CONDUCTORTEST_API UConductorSettings : public UDeveloperSettings
+class CONDUCTOR_API UConductorSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 

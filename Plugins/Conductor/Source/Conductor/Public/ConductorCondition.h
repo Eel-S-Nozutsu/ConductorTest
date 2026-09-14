@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Conductor/ConductorObjectBase.h"
+#include "ConductorObjectBase.h"
 #include "ConductorCondition.generated.h"
 
 class UContentConductor;
@@ -12,7 +12,7 @@ class UContentConductor;
  * フェーズ遷移の条件 真偽を返すのみで副作用は持たない
  */
 UCLASS(Abstract, Blueprintable, BlueprintType, EditInlineNew)
-class CONDUCTORTEST_API UConductorCondition : public UConductorObjectBase
+class CONDUCTOR_API UConductorCondition : public UConductorObjectBase
 {
 	GENERATED_BODY()
 
@@ -57,7 +57,7 @@ private:
  * 時間経過 フェーズ開始からDelay秒が経過したらtrue
  */
 UCLASS(meta = (DisplayName = "時間経過"))
-class CONDUCTORTEST_API UConductorCondition_Elapsed : public UConductorCondition
+class CONDUCTOR_API UConductorCondition_Elapsed : public UConductorCondition
 {
 	GENERATED_BODY()
 

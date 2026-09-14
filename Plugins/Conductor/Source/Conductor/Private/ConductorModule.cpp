@@ -2,8 +2,8 @@
 
 #include "ConductorModule.h"
 
-#include "Conductor/ContentConductor.h"
-#include "Conductor/MapConductor.h"
+#include "ContentConductor.h"
+#include "MapConductor.h"
 
 void UConductorModuleBase::StartModule()
 {

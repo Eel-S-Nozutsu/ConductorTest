@@ -43,7 +43,7 @@ struct FContentConductorPhase
  * 1コンテンツ分のフェーズ定義一式
  */
 UCLASS(BlueprintType)
-class CONDUCTORTEST_API UContentConductorPhaseSet : public UDataAsset
+class CONDUCTOR_API UContentConductorPhaseSet : public UDataAsset
 {
 	GENERATED_BODY()
 

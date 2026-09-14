@@ -2,10 +2,11 @@
 
 #include "ConductorSubsystem.h"
 
-#include "Conductor/MapConductor.h"
-#include "Conductor/ContentConductor.h"
-#include "Conductor/Data/MapConductorRow.h"
-#include "Conductor/Data/ConductorSettings.h"
+#include "MapConductor.h"
+#include "ContentConductor.h"
+#include "Data/MapConductorRow.h"
+#include "Data/ConductorSettings.h"
+#include "ConductorLog.h"
 
 bool UConductorSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -123,7 +124,7 @@ void UConductorSubsystem::TryCreateMapConductor(const ULevel* Level)
 
 			if (bCreated)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[Conductor] レベル %s を指す行が複数あります (行 %s は無視)"), *LevelPackageName.ToString(), *RowName.ToString());
+				UE_LOG(LogConductor, Warning, TEXT("[Conductor] レベル %s を指す行が複数あります (行 %s は無視)"), *LevelPackageName.ToString(), *RowName.ToString());
 				return;
 			}
 
@@ -166,6 +167,6 @@ void UConductorSubsystem::CacheTables()
 
 	if (!MapConductorTable)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Conductor] レベル紐づけDTが未設定"));
+		UE_LOG(LogConductor, Log, TEXT("[Conductor] レベル紐づけDTが未設定"));
 	}
 }

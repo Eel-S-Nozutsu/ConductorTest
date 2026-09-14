@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Conductor",
+	"Description": "レベル / コンテンツ単位の進行管理 (フェーズ遷移、アクター状態制御)",
+	"Category": "Gameplay",
+	"CreatedBy": "EelGameStudio",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "Conductor",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
