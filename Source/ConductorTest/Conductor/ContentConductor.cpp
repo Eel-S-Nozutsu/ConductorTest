@@ -53,7 +53,7 @@ void UContentConductor::StopConductor()
 		Module->StopModule();
 	}
 
-	//DestroyAllSpawned();
+	DestroyAllSpawned();
 
 	Modules.Reset();
 	bStarted = false;
@@ -276,15 +276,19 @@ void UContentConductor::ApplyActorsForPhase(FName Phase)
 
 			if (!Entry) return;
 
-			ApplyState(RowName, Entry->State); // RowName = ActorId
+			ApplyState(RowName, Row, Entry->State); // RowName = ActorId
 		});
 }
 
-void UContentConductor::ApplyState(FName ActorId, EConductorActorState State)
+void UContentConductor::ApplyState(FName ActorId, const FConductorActorRow& Row, EConductorActorState State)
 {
 	if (State == EConductorActorState::Removed)
 	{
-		//DestroySpawned(ActorId);
+		if (Row.SpawnClass)
+		{
+			DestroySpawned(ActorId);
+			return;
+		}
 
 		if (AActor* Placed = ResolvePlacedActor(ActorId))
 		{
@@ -296,14 +300,32 @@ void UContentConductor::ApplyState(FName ActorId, EConductorActorState State)
 		return;
 	}
 
-	AActor* Actor = ResolvePlacedActor(ActorId);
+	AActor* Actor = Row.SpawnClass ? EnsureSpawned(ActorId, Row) : ResolvePlacedActor(ActorId);
 	if (!Actor) return;
 
-	const bool bActive = State == EConductorActorState::Active;
+	bool bHidden	= false;
+	bool bCollision = true;
+	bool bTick		= true;
 
-	Actor->SetActorHiddenInGame(State == EConductorActorState::Hidden);
-	Actor->SetActorEnableCollision(bActive);
-	Actor->SetActorTickEnabled(bActive);
+	switch (State)
+	{
+	case EConductorActorState::Active:
+		break;
+	case EConductorActorState::Hidden:
+		bHidden	   = true;
+		bCollision = false;
+		break;
+	case EConductorActorState::Frozen:
+		bTick = false;
+		break;
+	default:
+		checkNoEntry();
+		break;
+	}
+
+	Actor->SetActorHiddenInGame(bHidden);
+	Actor->SetActorEnableCollision(bCollision);
+	Actor->SetActorTickEnabled(bTick);
 }
 
 AActor* UContentConductor::ResolvePlacedActor(FName ActorId)
@@ -337,4 +359,63 @@ void UContentConductor::ScanPlacedActors()
 
 		PlacedActors.Add(IdComponent->ActorId, *It);
 	}
+}
+
+AActor* UContentConductor::EnsureSpawned(FName ActorId, const FConductorActorRow& Row)
+{
+	if (const TWeakObjectPtr<AActor>* Existing = SpawnedActors.Find(ActorId))
+	{
+		if (Existing->IsValid()) return Existing->Get();
+	}
+
+	UWorld* World = GetWorld();
+	if (!World || !Row.SpawnClass) return nullptr;
+
+	FTransform SpawnTransform = FTransform::Identity;
+
+	if (!Row.SpawnPointId.IsNone())
+	{
+		const AActor* SpawnPoint = ResolvePlacedActor(Row.SpawnPointId);
+		if (!SpawnPoint)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[Conductor] %s/%s: 生成位置(%s)が見つからないので生成しない"), *ContentId.ToString(), *ActorId.ToString(), *Row.SpawnPointId.ToString());
+			return nullptr;
+		}
+
+		SpawnTransform = SpawnPoint->GetActorTransform();
+	}
+
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	AActor* Spawned = World->SpawnActor<AActor>(Row.SpawnClass, SpawnTransform, Params);
+	if (!Spawned) return nullptr;
+
+	SpawnedActors.Add(ActorId, Spawned);
+
+	return Spawned;
+}
+
+void UContentConductor::DestroySpawned(FName ActorId)
+{
+	TWeakObjectPtr<AActor> Spawned;
+	if (!SpawnedActors.RemoveAndCopyValue(ActorId, Spawned)) return;
+
+	if (Spawned.IsValid())
+	{
+		Spawned->Destroy();
+	}
+}
+
+void UContentConductor::DestroyAllSpawned()
+{
+	for (const TPair<FName, TWeakObjectPtr<AActor>>& Pair : SpawnedActors)
+	{
+		if (Pair.Value.IsValid())
+		{
+			Pair.Value->Destroy();
+		}
+	}
+
+	SpawnedActors.Reset();
 }

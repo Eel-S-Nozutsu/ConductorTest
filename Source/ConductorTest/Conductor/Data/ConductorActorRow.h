@@ -13,9 +13,16 @@
 UENUM(BlueprintType)
 enum class EConductorActorState : uint8
 {
+	// HiddeninGame(false), Collision(true), Tick(true)
 	Active UMETA(DisplayName = "出す"),
-	//Frozen UMETA(DisplayName = "止める"),
+
+	// HiddeninGame(true), Collision(false), Tick(true)
 	Hidden UMETA(DisplayName = "隠す"),
+
+	// HiddeninGame(false), Collision(true), Tick(false)
+	Frozen UMETA(DisplayName = "止める"),
+
+	// HiddeninGame(true), Collision(false), Tick(false)
 	Removed UMETA(DisplayName = "片づける"),
 };
 
@@ -55,6 +62,14 @@ struct FConductorActorRow : public FTableRowBase
 	// 所属グループ
 	UPROPERTY(EditAnywhere)
 	FName GroupId;
+
+	// 生成する場合 生成するクラスを指定
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AActor> SpawnClass;
+
+	// 生成する場合 生成先の配置アクターを差すId
+	UPROPERTY(EditAnywhere)
+	FName SpawnPointId;
 
 	// 状態
 	UPROPERTY(EditAnywhere)

@@ -62,10 +62,15 @@ private:
 
 	void ValidateTables(FName InitialPhaseName) const;
 
+	// memo: 状態の適用がフェーズ入場時の一度きりなのでストリーミング環境で不安定
 	void ApplyActorsForPhase(FName Phase);
-	void ApplyState(FName ActorId, EConductorActorState State);
+	void ApplyState(FName ActorId, const FConductorActorRow& Row, EConductorActorState State);
 	AActor* ResolvePlacedActor(FName ActorId);
 	void ScanPlacedActors();
+
+	AActor* EnsureSpawned(FName ActorId, const FConductorActorRow& Row);
+	void DestroySpawned(FName ActorId);
+	void DestroyAllSpawned();
 
 	UPROPERTY()
 	TObjectPtr<UDataTable> PhaseTable;
