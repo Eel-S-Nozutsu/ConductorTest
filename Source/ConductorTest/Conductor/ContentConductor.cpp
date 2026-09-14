@@ -77,6 +77,14 @@ void UContentConductor::TickConductor(float DeltaSeconds)
 	EvaluateTransitions();
 }
 
+void UContentConductor::RequestPhase(FName NextPhase)
+{
+	if (!bStarted || NextPhase.IsNone()) return;
+
+	PendingPhase  = NextPhase;
+	bPhasePending = true;
+}
+
 UContentConductorModule* UContentConductor::FindModuleByClass(
 	TSubclassOf<UContentConductorModule> ModuleClass) const
 {

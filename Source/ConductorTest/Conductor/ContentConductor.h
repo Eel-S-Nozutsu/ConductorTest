@@ -35,6 +35,9 @@ public:
 	FName GetContentId() const { return ContentId; }
 
 	UFUNCTION(BlueprintCallable)
+	void RequestPhase(FName NextPhase);
+
+	UFUNCTION(BlueprintCallable)
 	UContentConductorModule* FindModuleByClass(
 		TSubclassOf<UContentConductorModule> ModuleClass) const;
 
