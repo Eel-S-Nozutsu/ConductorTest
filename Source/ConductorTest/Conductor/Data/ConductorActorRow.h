@@ -51,14 +51,6 @@ struct FConductorActorRow : public FTableRowBase
 {
 	GENERATED_BODY()
 
-	// コンテンツID
-	UPROPERTY(EditAnywhere)
-	FName ContentId;
-
-	// 配置アクターを差すId
-	UPROPERTY(EditAnywhere)
-	FName ActorId;
-
 	// 所属グループ
 	UPROPERTY(EditAnywhere)
 	FName GroupId;
