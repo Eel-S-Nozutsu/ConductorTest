@@ -18,7 +18,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnContentPhaseChanged, UContentConductor
 /**
  * 1コンテンツの進行役
  */
-UCLASS(Blueprintable, BlueprintType)
+UCLASS(BlueprintType)
 class CONDUCTORTEST_API UContentConductor : public UConductorObjectBase
 {
 	GENERATED_BODY()

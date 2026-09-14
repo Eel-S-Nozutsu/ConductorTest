@@ -14,7 +14,7 @@ struct FMapConductorRow;
  * 1レベルに1つ存在
  * 侵入時にそのレベルに属するContentConductorを生成する
  */
-UCLASS(Blueprintable, BlueprintType)
+UCLASS(BlueprintType)
 class CONDUCTORTEST_API UMapConductor : public UConductorObjectBase
 {
 	GENERATED_BODY()

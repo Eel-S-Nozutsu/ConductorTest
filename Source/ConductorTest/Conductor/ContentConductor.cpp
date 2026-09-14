@@ -187,7 +187,7 @@ TArray<AActor*> UContentConductor::GetGroupActors(FName GroupId)
 	if (!ActorTable || GroupId.IsNone()) return Actors;
 
 	ActorTable->ForeachRow<FConductorActorRow>(
-		TEXT("UContentDirector::GetGroupActors"),
+		TEXT("UContentConductor::GetGroupActors"),
 		[&](const FName& RowName, const FConductorActorRow& Row)
 		{
 			if (Row.GroupId != GroupId) return;
@@ -455,7 +455,7 @@ void UContentConductor::ApplyActorsForPhase(FName Phase)
 	if (!ActorTable) return;
 
 	ActorTable->ForeachRow<FConductorActorRow>(
-		TEXT("UContentDirector::ApplyActorsForPhase"),
+		TEXT("UContentConductor::ApplyActorsForPhase"),
 		[&](const FName& RowName, const FConductorActorRow& Row)
 		{
 			const FConductorActorPhaseEntry* Entry = Row.Phases.FindByPredicate(

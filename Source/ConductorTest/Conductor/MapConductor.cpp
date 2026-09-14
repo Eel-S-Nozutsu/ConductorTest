@@ -34,8 +34,7 @@ void UMapConductor::StartConductor(const FMapConductorRow& Row, FName InLevelPac
 		TEXT("UMapConductor::StartConductor"),
 		[&](const FName& RowName, const FContentConductorRow& ContentRow)
 		{
-			UClass* ConductorClass		 = UContentConductor::StaticClass();
-			UContentConductor* Conductor = NewObject<UContentConductor>(this, ConductorClass);
+			UContentConductor* Conductor = NewObject<UContentConductor>(this);
 			ContentConductors.Add(Conductor);
 
 			Conductor->StartConductor(RowName, ContentRow);

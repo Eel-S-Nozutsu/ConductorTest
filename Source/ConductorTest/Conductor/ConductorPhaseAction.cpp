@@ -8,7 +8,7 @@ void UConductorPhaseAction::Execute_Implementation(UContentConductor* Conductor)
 {
 }
 
-void UDirectorPhaseAction_Log::Execute_Implementation(UContentConductor* Conductor)
+void UConductorPhaseAction_Log::Execute_Implementation(UContentConductor* Conductor)
 {
 	const FName ContentId = Conductor ? Conductor->GetContentId() : NAME_None;
 

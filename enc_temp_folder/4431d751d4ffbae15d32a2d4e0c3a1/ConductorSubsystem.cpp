@@ -46,7 +46,8 @@ void UConductorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	bWorldStarted = true;
 
 	// すでに読み込まれているレベルがあった場合の対処
-	// パーシスタントとストリーミング済みとかが該当
+	// UEのライフサイクル上起こりえないのであれば不要なので要検証
+	// パーシスタントとストリーミング済みとかが該当するのかな？
 	for (const ULevel* Level : InWorld.GetLevels())
 	{
 		TryCreateMapConductor(Level);

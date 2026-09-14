@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
 #include "Conductor/ConductorObjectBase.h"
 #include "ConductorPhaseAction.generated.h"
 
@@ -26,7 +25,7 @@ public:
  * ログ出力
  */
 UCLASS(meta = (DisplayName = "ログ出力"))
-class CONDUCTORTEST_API UDirectorPhaseAction_Log : public UConductorPhaseAction
+class CONDUCTORTEST_API UConductorPhaseAction_Log : public UConductorPhaseAction
 {
 	GENERATED_BODY()
 
