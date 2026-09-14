@@ -57,6 +57,8 @@ public:
 	FOnContentPhaseChanged OnPhaseChanged;
 
 private:
+	void BeginContent();
+
 	void EnterPhase(FName NewPhase);
 	void EvaluateTransitions();
 
@@ -64,13 +66,15 @@ private:
 	void ClearConditions();
 	const FContentConductorPhase* FindPhase(FName Phase) const;
 
-	void ValidateTables(FName InitialPhaseName) const;
+	void ValidateData() const;
 
-	// memo: 状態の適用がフェーズ入場時の一度きりなのでストリーミング環境で不安定
+	// 開始時に集めたものが最後まで居る前提 対象アクターは bIsSpatiallyLoaded = false にすること
+	void ScanPlacedActors();
+	void VerifyPlacedActors() const;
+
 	void ApplyActorsForPhase(FName Phase);
 	void ApplyState(FName ActorId, const FConductorActorRow& Row, EConductorActorState State);
 	AActor* ResolvePlacedActor(FName ActorId);
-	void ScanPlacedActors();
 
 	AActor* EnsureSpawned(FName ActorId, const FConductorActorRow& Row);
 	void DestroySpawned(FName ActorId);
@@ -83,7 +87,13 @@ private:
 	TObjectPtr<UDataTable> ActorTable;
 
 	UPROPERTY()
+	TArray<TSubclassOf<UContentConductorModule>> ModuleClasses;
+
+	UPROPERTY()
 	TArray<TObjectPtr<UContentConductorModule>> Modules;
+
+	UPROPERTY()
+	TObjectPtr<UConductorCondition> StartCondition;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UConductorCondition>> PhaseConditions;
@@ -97,6 +107,7 @@ private:
 	FName CurrentPhase;
 	FName PendingPhase;
 
-	bool bStarted	   = false;
-	bool bPhasePending = false;
+	bool bStarted		 = false;
+	bool bContentStarted = false;
+	bool bPhasePending	 = false;
 };

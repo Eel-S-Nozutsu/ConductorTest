@@ -48,6 +48,12 @@ class CONDUCTORTEST_API UContentConductorPhaseSet : public UDataAsset
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditAnywhere, Instanced, meta = (DisplayName = "コンテンツ開始条件 (空なら即開始)"))
+	TObjectPtr<UConductorCondition> StartCondition;
+
+	UPROPERTY(EditAnywhere, meta = (DisplayName = "開始時に入るフェーズ"))
+	FName InitialPhase;
+
 	UPROPERTY(EditAnywhere, meta = (DisplayName = "フェーズ定義", ForceInlineRow))
 	TMap<FName, FContentConductorPhase> Phases;
 };

@@ -10,17 +10,54 @@
 #include "Conductor/Data/ContentConductorPhaseSet.h"
 
 #include "EngineUtils.h"
+#include "Kismet/KismetSystemLibrary.h"
+
+// 後でLog.hとかに移動
+#define UE_SCREEN_LOG_ERROR(WorldContextObject, Format, ...)                                                          \
+	{                                                                                                                 \
+		FString ErrorMessage = FString::Printf(Format, ##__VA_ARGS__);                                                \
+		UE_LOG(LogTemp, Error, TEXT("%s"), *ErrorMessage);                                                            \
+		if (GEngine)                                                                                                  \
+		{                                                                                                             \
+			UKismetSystemLibrary::PrintString(WorldContextObject, ErrorMessage, true, true, FLinearColor::Red, 2.0f); \
+		}                                                                                                             \
+	}
 
 void UContentConductor::StartConductor(FName InContentId, const FContentConductorRow& Row)
 {
-	ContentId = InContentId;
+	ContentId	  = InContentId;
+	PhaseSet	  = Row.PhaseSet.LoadSynchronous();
+	ActorTable	  = Row.ActorTable.LoadSynchronous();
+	ModuleClasses = Row.Modules;
 
-	PhaseSet   = Row.PhaseSet.LoadSynchronous();
-	ActorTable = Row.ActorTable.LoadSynchronous();
+	ValidateData();
 
-	ValidateTables(Row.InitialPhase);
+	bStarted = true;
 
-	for (const TSubclassOf<UContentConductorModule>& ModuleClass : Row.Modules)
+	if (PhaseSet && PhaseSet->StartCondition)
+	{
+		StartCondition = DuplicateObject<UConductorCondition>(PhaseSet->StartCondition, this);
+		StartCondition->BeginEvaluation(this);
+
+		return;
+	}
+
+	BeginContent();
+}
+
+void UContentConductor::BeginContent()
+{
+	if (StartCondition)
+	{
+		StartCondition->EndEvaluation();
+		StartCondition = nullptr;
+	}
+
+	// 以降は再走査しないので、ここで揃っていないとコンテンツ中は欠けたままになる
+	ScanPlacedActors();
+	VerifyPlacedActors();
+
+	for (const TSubclassOf<UContentConductorModule>& ModuleClass : ModuleClasses)
 	{
 		if (!ModuleClass) continue;
 
@@ -28,40 +65,61 @@ void UContentConductor::StartConductor(FName InContentId, const FContentConducto
 		Modules.Add(Module);
 	}
 
-	bStarted = true;
+	bContentStarted = true;
 
 	for (const TObjectPtr<UContentConductorModule>& Module : Modules)
 	{
 		Module->StartModule();
 	}
 
-	EnterPhase(Row.InitialPhase);
+	EnterPhase(PhaseSet ? PhaseSet->InitialPhase : NAME_None);
 }
 
 void UContentConductor::StopConductor()
 {
 	if (!bStarted) return;
 
-	ClearConditions();
-
-	for (const TObjectPtr<UContentConductorModule>& Module : Modules)
+	if (StartCondition)
 	{
-		if (!CurrentPhase.IsNone())
-		{
-			Module->ExitPhase(CurrentPhase);
-		}
-		Module->StopModule();
+		StartCondition->EndEvaluation();
+		StartCondition = nullptr;
 	}
 
-	DestroyAllSpawned();
+	if (bContentStarted)
+	{
+		ClearConditions();
 
-	Modules.Reset();
-	bStarted = false;
+		for (const TObjectPtr<UContentConductorModule>& Module : Modules)
+		{
+			if (!CurrentPhase.IsNone())
+			{
+				Module->ExitPhase(CurrentPhase);
+			}
+			Module->StopModule();
+		}
+
+		DestroyAllSpawned();
+
+		Modules.Reset();
+	}
+
+	bContentStarted = false;
+	bStarted		= false;
 }
 
 void UContentConductor::TickConductor(float DeltaSeconds)
 {
 	if (!bStarted) return;
+
+	if (!bContentStarted)
+	{
+		if (StartCondition && StartCondition->Evaluate())
+		{
+			BeginContent();
+		}
+
+		return;
+	}
 
 	if (bPhasePending)
 	{
@@ -79,7 +137,7 @@ void UContentConductor::TickConductor(float DeltaSeconds)
 
 void UContentConductor::RequestPhase(FName NextPhase)
 {
-	if (!bStarted || NextPhase.IsNone()) return;
+	if (!bContentStarted || NextPhase.IsNone()) return;
 
 	PendingPhase  = NextPhase;
 	bPhasePending = true;
@@ -152,14 +210,14 @@ void UContentConductor::EnterPhase(FName NewPhase)
 
 	if (NewPhase.IsNone())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Conductor] %s: 遷移先のフェーズが未設定"), *ContentId.ToString());
+		UE_SCREEN_LOG_ERROR(this, TEXT("[Conductor] %s: 遷移先のフェーズが未設定"), *ContentId.ToString());
 		return;
 	}
 
 	const FContentConductorPhase* PhaseDef = FindPhase(NewPhase);
 	if (!PhaseDef)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Conductor] %s: フェーズ %s が DataAsset に無い"), *ContentId.ToString(), *NewPhase.ToString());
+		UE_SCREEN_LOG_ERROR(this, TEXT("[Conductor] %s: フェーズ %s が DataAsset に無い"), *ContentId.ToString(), *NewPhase.ToString());
 		return;
 	}
 
@@ -262,7 +320,7 @@ const FContentConductorPhase* UContentConductor::FindPhase(FName Phase) const
 	return PhaseSet->Phases.Find(Phase);
 }
 
-void UContentConductor::ValidateTables(FName InitialPhaseName) const
+void UContentConductor::ValidateData() const
 {
 	// todo: ここで警告かエラー出したい
 }
@@ -339,33 +397,74 @@ AActor* UContentConductor::ResolvePlacedActor(FName ActorId)
 {
 	if (ActorId.IsNone()) return nullptr;
 
-	if (const TWeakObjectPtr<AActor>* Cached = PlacedActors.Find(ActorId))
-	{
-		if (Cached->IsValid()) return Cached->Get();
-	}
+	const TWeakObjectPtr<AActor>* Cached = PlacedActors.Find(ActorId);
 
-	// 一応サブレベルのストリームインで後から現れる場合があるので
-	ScanPlacedActors();
-
-	const TWeakObjectPtr<AActor>* Found = PlacedActors.Find(ActorId);
-
-	return Found && Found->IsValid() ? Found->Get() : nullptr;
+	return Cached && Cached->IsValid() ? Cached->Get() : nullptr;
 }
 
 void UContentConductor::ScanPlacedActors()
 {
-	UWorld* World = GetWorld();
-	if (!World) return;
-
 	PlacedActors.Reset();
+
+	UWorld* World = GetWorld();
+	if (!World || !ActorTable) return;
+
+	TSet<FName> TargetIds;
+	ActorTable->ForeachRow<FConductorActorRow>(
+		TEXT("UContentConductor::ScanPlacedActors"),
+		[&](const FName& RowName, const FConductorActorRow& Row)
+		{
+			if (!Row.SpawnClass)
+			{
+				TargetIds.Add(RowName); // RowName = ActorId
+			}
+
+			if (!Row.SpawnPointId.IsNone())
+			{
+				TargetIds.Add(Row.SpawnPointId);
+			}
+		});
+
+	if (TargetIds.IsEmpty()) return;
 
 	for (TActorIterator<AActor> It(World); It; ++It)
 	{
 		const UConductorIdComponent* IdComponent = It->FindComponentByClass<UConductorIdComponent>();
-		if (!IdComponent || IdComponent->ActorId.IsNone()) continue;
+		if (!IdComponent || !TargetIds.Contains(IdComponent->ActorId)) continue;
 
 		PlacedActors.Add(IdComponent->ActorId, *It);
 	}
+}
+
+void UContentConductor::VerifyPlacedActors() const
+{
+	if (!ActorTable) return;
+
+	TArray<FName> Missing;
+	ActorTable->ForeachRow<FConductorActorRow>(
+		TEXT("UContentConductor::VerifyPlacedActors"),
+		[&](const FName& RowName, const FConductorActorRow& Row)
+		{
+			if (!Row.SpawnClass && !PlacedActors.Contains(RowName))
+			{
+				Missing.AddUnique(RowName);
+			}
+
+			if (!Row.SpawnPointId.IsNone() && !PlacedActors.Contains(Row.SpawnPointId))
+			{
+				Missing.AddUnique(Row.SpawnPointId);
+			}
+		});
+
+	if (Missing.IsEmpty()) return;
+
+	const FString Ids = FString::JoinBy(
+		Missing, TEXT(", "), [](const FName& Id)
+		{
+			return Id.ToString();
+		});
+
+	UE_SCREEN_LOG_ERROR(this, TEXT("[Conductor] %s: 配置アクターが %d 件見つからない (%s)"), *ContentId.ToString(), Missing.Num(), *Ids);
 }
 
 AActor* UContentConductor::EnsureSpawned(FName ActorId, const FConductorActorRow& Row)
@@ -385,7 +484,7 @@ AActor* UContentConductor::EnsureSpawned(FName ActorId, const FConductorActorRow
 		const AActor* SpawnPoint = ResolvePlacedActor(Row.SpawnPointId);
 		if (!SpawnPoint)
 		{
-			UE_LOG(LogTemp, Error, TEXT("[Conductor] %s/%s: 生成位置(%s)が見つからないので生成しない"), *ContentId.ToString(), *ActorId.ToString(), *Row.SpawnPointId.ToString());
+			UE_SCREEN_LOG_ERROR(this, TEXT("[Conductor] %s/%s: 生成位置(%s)が見つからないので生成しない"), *ContentId.ToString(), *ActorId.ToString(), *Row.SpawnPointId.ToString());
 			return nullptr;
 		}
 

@@ -22,9 +22,6 @@ struct FContentConductorRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, meta = (DisplayName = "フェーズ定義"))
 	TSoftObjectPtr<UContentConductorPhaseSet> PhaseSet;
 
-	UPROPERTY(EditAnywhere, meta = (DisplayName = "生成直後に入るフェーズ(PhaseSetのキー)"))
-	FName InitialPhase;
-
 	UPROPERTY(EditAnywhere, meta = (DisplayName = "このコンテンツが制御するアクター"))
 	TSoftObjectPtr<UDataTable> ActorTable;
 
