@@ -5,18 +5,20 @@
 #include "CoreMinimal.h"
 #include "ConductorObjectBase.h"
 #include "Data/ConductorActorRow.h"
+#include "GameplayTagContainer.h"
+#include "StateTreeInstanceData.h"
 #include "ContentConductor.generated.h"
 
 class UContentConductorModule;
-class UConductorCondition;
-class UContentConductorPhaseSet;
+class UStateTree;
 struct FContentConductorRow;
-struct FContentConductorPhase;
+struct FStateTreeExecutionContext;
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnContentPhaseChanged, UContentConductor*, FName, FName);
 
 /**
  * 1コンテンツの進行役
+ * フェーズ遷移はStateTreeが持ち、ここはその器とアクターの面倒を見る
  */
 UCLASS(BlueprintType)
 class CONDUCTOR_API UContentConductor : public UConductorObjectBase
@@ -35,9 +37,6 @@ public:
 	FName GetContentId() const { return ContentId; }
 
 	UFUNCTION(BlueprintCallable)
-	void RequestPhase(FName NextPhase);
-
-	UFUNCTION(BlueprintCallable)
 	UContentConductorModule* FindModuleByClass(
 		TSubclassOf<UContentConductorModule> ModuleClass) const;
 
@@ -53,22 +52,28 @@ public:
 	UFUNCTION(BlueprintCallable)
 	TArray<AActor*> GetGroupActors(FName GroupId);
 
+	// ツリーのタスクから呼ぶ フェーズの実体(アクター表とモジュール通知)を当てる
+	void EnterPhase(FName NewPhase);
+	void ExitPhase(FName Phase);
+
+	UFUNCTION(BlueprintCallable)
+	void SendStateTreeEvent(FGameplayTag Tag);
+
 	// フェーズ変更の際
 	FOnContentPhaseChanged OnPhaseChanged;
 
 private:
-	void BeginContent();
-
-	void EnterPhase(FName NewPhase);
-	void EvaluateTransitions();
-
-	void BuildConditions(const FContentConductorPhase& PhaseDef);
-	void ClearConditions();
-	const FContentConductorPhase* FindPhase(FName Phase) const;
-
+	TSet<FName> CollectTreePhases() const;
 	void ValidateData() const;
 
-	// 開始時に集めたものが最後まで居る前提 対象アクターは bIsSpatiallyLoaded = false にすること
+	void StartStateTree();
+	void StopStateTree();
+	void TickStateTree(float DeltaSeconds);
+	bool SetStateTreeContext(FStateTreeExecutionContext& Context);
+
+	// 最初にフェーズが適用された時点で1回だけ集める
+	// 以降は集め直さないので、対象アクターは bIsSpatiallyLoaded = false にすること
+	void EnsureActorsScanned();
 	void ScanPlacedActors();
 	void VerifyPlacedActors() const;
 
@@ -81,22 +86,16 @@ private:
 	void DestroyAllSpawned();
 
 	UPROPERTY()
-	TObjectPtr<UContentConductorPhaseSet> PhaseSet;
+	TObjectPtr<UStateTree> StateTreeAsset;
+
+	UPROPERTY()
+	FStateTreeInstanceData StateTreeInstanceData;
 
 	UPROPERTY()
 	TObjectPtr<UDataTable> ActorTable;
 
 	UPROPERTY()
-	TArray<TSubclassOf<UContentConductorModule>> ModuleClasses;
-
-	UPROPERTY()
 	TArray<TObjectPtr<UContentConductorModule>> Modules;
-
-	UPROPERTY()
-	TObjectPtr<UConductorCondition> StartCondition;
-
-	UPROPERTY()
-	TArray<TObjectPtr<UConductorCondition>> PhaseConditions;
 
 	// コンテンツに関連するレベル配置アクター
 	TMap<FName, TWeakObjectPtr<AActor>> PlacedActors;
@@ -105,9 +104,10 @@ private:
 
 	FName ContentId;
 	FName CurrentPhase;
-	FName PendingPhase;
 
-	bool bStarted		 = false;
-	bool bContentStarted = false;
-	bool bPhasePending	 = false;
+	// ツリーはExitStateを先に流すので、次のEnterまで直前のフェーズを預かる
+	FName ExitedPhase;
+
+	bool bStarted		= false;
+	bool bActorsScanned = false;
 };

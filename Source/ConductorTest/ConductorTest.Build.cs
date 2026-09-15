@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026, S.Nozutsu EelGameStudio, Inc. All Rights Reserved.
+// Copyright (c) 2026, S.Nozutsu EelGameStudio, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -14,6 +14,7 @@ public class ConductorTest : ModuleRules
 			"Engine",
 			"InputCore",
             "GameplayTags",
+			"StateTreeModule",
 			"ImGui",
 			"Conductor"
 			]);

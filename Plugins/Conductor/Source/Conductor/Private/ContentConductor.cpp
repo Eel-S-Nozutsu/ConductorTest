@@ -3,50 +3,25 @@
 #include "ContentConductor.h"
 
 #include "ConductorModule.h"
-#include "ConductorPhaseAction.h"
-#include "ConductorCondition.h"
 #include "ConductorIdComponent.h"
 #include "Data/ContentConductorRow.h"
-#include "Data/ContentConductorPhaseSet.h"
+#include "StateTree/ConductorStateTreeSchema.h"
+#include "StateTree/ConductorStateTreeTasks.h"
 #include "ConductorLog.h"
 
 #include "EngineUtils.h"
+#include "StateTree.h"
+#include "StateTreeExecutionContext.h"
 
 void UContentConductor::StartConductor(FName InContentId, const FContentConductorRow& Row)
 {
-	ContentId	  = InContentId;
-	PhaseSet	  = Row.PhaseSet.LoadSynchronous();
-	ActorTable	  = Row.ActorTable.LoadSynchronous();
-	ModuleClasses = Row.Modules;
+	ContentId	   = InContentId;
+	StateTreeAsset = Row.StateTree.LoadSynchronous();
+	ActorTable	   = Row.ActorTable.LoadSynchronous();
 
 	ValidateData();
 
-	bStarted = true;
-
-	if (PhaseSet && PhaseSet->StartCondition)
-	{
-		StartCondition = DuplicateObject<UConductorCondition>(PhaseSet->StartCondition, this);
-		StartCondition->BeginEvaluation(this);
-
-		return;
-	}
-
-	BeginContent();
-}
-
-void UContentConductor::BeginContent()
-{
-	if (StartCondition)
-	{
-		StartCondition->EndEvaluation();
-		StartCondition = nullptr;
-	}
-
-	// 以降は再走査しないので、ここで揃っていないとコンテンツ中は欠けたままになる
-	ScanPlacedActors();
-	VerifyPlacedActors();
-
-	for (const TSubclassOf<UContentConductorModule>& ModuleClass : ModuleClasses)
+	for (const TSubclassOf<UContentConductorModule>& ModuleClass : Row.Modules)
 	{
 		if (!ModuleClass) continue;
 
@@ -54,82 +29,48 @@ void UContentConductor::BeginContent()
 		Modules.Add(Module);
 	}
 
-	bContentStarted = true;
+	bStarted = true;
 
 	for (const TObjectPtr<UContentConductorModule>& Module : Modules)
 	{
 		Module->StartModule();
 	}
 
-	EnterPhase(PhaseSet ? PhaseSet->InitialPhase : NAME_None);
+	StartStateTree();
 }
 
 void UContentConductor::StopConductor()
 {
 	if (!bStarted) return;
 
-	if (StartCondition)
-	{
-		StartCondition->EndEvaluation();
-		StartCondition = nullptr;
-	}
+	StopStateTree();
 
-	if (bContentStarted)
+	for (const TObjectPtr<UContentConductorModule>& Module : Modules)
 	{
-		ClearConditions();
-
-		for (const TObjectPtr<UContentConductorModule>& Module : Modules)
+		if (!CurrentPhase.IsNone())
 		{
-			if (!CurrentPhase.IsNone())
-			{
-				Module->ExitPhase(CurrentPhase);
-			}
-			Module->StopModule();
+			Module->ExitPhase(CurrentPhase);
 		}
-
-		DestroyAllSpawned();
-
-		Modules.Reset();
+		Module->StopModule();
 	}
 
-	bContentStarted = false;
-	bStarted		= false;
+	DestroyAllSpawned();
+
+	Modules.Reset();
+
+	bStarted = false;
 }
 
 void UContentConductor::TickConductor(float DeltaSeconds)
 {
 	if (!bStarted) return;
 
-	if (!bContentStarted)
-	{
-		if (StartCondition && StartCondition->Evaluate())
-		{
-			BeginContent();
-		}
-
-		return;
-	}
-
-	if (bPhasePending)
-	{
-		bPhasePending = false;
-		EnterPhase(PendingPhase);
-	}
-
 	for (const TObjectPtr<UContentConductorModule>& Module : Modules)
 	{
 		Module->TickModule(DeltaSeconds);
 	}
 
-	EvaluateTransitions();
-}
-
-void UContentConductor::RequestPhase(FName NextPhase)
-{
-	if (!bContentStarted || NextPhase.IsNone()) return;
-
-	PendingPhase  = NextPhase;
-	bPhasePending = true;
+	TickStateTree(DeltaSeconds);
 }
 
 UContentConductorModule* UContentConductor::FindModuleByClass(
@@ -151,6 +92,8 @@ UContentConductorModule* UContentConductor::FindModuleByClass(
 AActor* UContentConductor::FindManagedActor(FName ActorId)
 {
 	if (ActorId.IsNone()) return nullptr;
+
+	EnsureActorsScanned();
 
 	if (const TWeakObjectPtr<AActor>* Spawned = SpawnedActors.Find(ActorId))
 	{
@@ -182,219 +125,120 @@ TArray<AActor*> UContentConductor::GetGroupActors(FName GroupId)
 
 void UContentConductor::EnterPhase(FName NewPhase)
 {
-	const FName OldPhase = CurrentPhase;
+	EnsureActorsScanned();
 
-	// 1. 現フェーズの後始末
-	ClearConditions();
-
-	if (!OldPhase.IsNone())
-	{
-		for (const TObjectPtr<UContentConductorModule>& Module : Modules)
-		{
-			Module->ExitPhase(OldPhase);
-		}
-	}
+	const FName OldPhase = CurrentPhase.IsNone() ? ExitedPhase : CurrentPhase;
 
 	CurrentPhase = NewPhase;
+	ExitedPhase	 = NAME_None;
 
-	if (NewPhase.IsNone())
-	{
-		UE_SCREEN_LOG_ERROR(this, TEXT("[Conductor] %s: 遷移先のフェーズが未設定"), *ContentId.ToString());
-		return;
-	}
-
-	const FContentConductorPhase* PhaseDef = FindPhase(NewPhase);
-	if (!PhaseDef)
-	{
-		UE_SCREEN_LOG_ERROR(this, TEXT("[Conductor] %s: フェーズ %s が DataAsset に無い"), *ContentId.ToString(), *NewPhase.ToString());
-		return;
-	}
-
-	// 2. アクターのポップ状態
 	ApplyActorsForPhase(NewPhase);
 
-	// 3. フェーズ開始のアクション実行 (現状同期前提)
-	for (const TObjectPtr<UConductorPhaseAction>& ActionTemplate : PhaseDef->EntryActions)
-	{
-		if (!ActionTemplate) continue;
-
-		UConductorPhaseAction* Action = DuplicateObject<UConductorPhaseAction>(ActionTemplate, this);
-		Action->Execute(this);
-	}
-
-	// 4. Moduleへ通知
 	for (const TObjectPtr<UContentConductorModule>& Module : Modules)
 	{
 		Module->EnterPhase(NewPhase);
 	}
-
-	BuildConditions(*PhaseDef);
 
 	UE_LOG(LogConductor, Log, TEXT("[Conductor] %s: フェーズ %s -> %s"), *ContentId.ToString(), *OldPhase.ToString(), *NewPhase.ToString());
 
 	OnPhaseChanged.Broadcast(this, OldPhase, NewPhase);
 }
 
-void UContentConductor::EvaluateTransitions()
+void UContentConductor::ExitPhase(FName Phase)
 {
-	const FContentConductorPhase* PhaseDef = FindPhase(CurrentPhase);
-	if (!PhaseDef) return;
-
-	if (!ensureMsgf(PhaseConditions.Num() == PhaseDef->Transitions.Num(),
-					TEXT("[Conductor] %s: フェーズ %s の条件数(%d)と遷移数(%d)が不一致"),
-					*ContentId.ToString(),
-					*CurrentPhase.ToString(),
-					PhaseConditions.Num(),
-					PhaseDef->Transitions.Num()))
+	for (const TObjectPtr<UContentConductorModule>& Module : Modules)
 	{
-		return;
+		Module->ExitPhase(Phase);
 	}
 
-	// 1. 決定のみ 配列順=優先度とする (最初にtrueになったConditionを採用)
-	int32 TransitionIndex = INDEX_NONE;
-	for (int32 Index = 0; Index < PhaseConditions.Num(); ++Index)
+	if (CurrentPhase == Phase)
 	{
-		if (PhaseConditions[Index] && PhaseConditions[Index]->Evaluate())
-		{
-			TransitionIndex = Index;
-			break;
-		}
-	}
-
-	if (TransitionIndex == INDEX_NONE) return;
-
-	// 2. ループを抜けてから適用
-	EnterPhase(PhaseDef->Transitions[TransitionIndex].NextPhase);
-}
-
-void UContentConductor::BuildConditions(const FContentConductorPhase& PhaseDef)
-{
-	ClearConditions();
-
-	for (const FConductorPhaseTransition& Transition : PhaseDef.Transitions)
-	{
-		// 添字を合わせたいので詰める
-		UConductorCondition* Condition = nullptr;
-		if (Transition.Condition)
-		{
-			Condition = DuplicateObject<UConductorCondition>(Transition.Condition, this);
-		}
-
-		PhaseConditions.Add(Condition);
-
-		if (Condition)
-		{
-			Condition->BeginEvaluation(this);
-		}
+		ExitedPhase	 = Phase;
+		CurrentPhase = NAME_None;
 	}
 }
 
-void UContentConductor::ClearConditions()
+void UContentConductor::SendStateTreeEvent(FGameplayTag Tag)
 {
-	for (const TObjectPtr<UConductorCondition>& Condition : PhaseConditions)
-	{
-		if (Condition)
-		{
-			Condition->EndEvaluation();
-		}
-	}
+	if (!StateTreeAsset || !bStarted) return;
 
-	PhaseConditions.Reset();
+	FStateTreeMinimalExecutionContext Context(this, StateTreeAsset, StateTreeInstanceData);
+	Context.SendEvent(Tag);
 }
 
-const FContentConductorPhase* UContentConductor::FindPhase(FName Phase) const
+void UContentConductor::StartStateTree()
 {
-	if (!PhaseSet) return nullptr;
+	if (!StateTreeAsset) return;
 
-	return PhaseSet->Phases.Find(Phase);
+	FStateTreeExecutionContext Context(*this, *StateTreeAsset, StateTreeInstanceData);
+	if (!SetStateTreeContext(Context)) return;
+
+	Context.Start();
+}
+
+void UContentConductor::StopStateTree()
+{
+	if (!StateTreeAsset) return;
+
+	FStateTreeExecutionContext Context(*this, *StateTreeAsset, StateTreeInstanceData);
+	if (!SetStateTreeContext(Context)) return;
+
+	Context.Stop();
+}
+
+void UContentConductor::TickStateTree(float DeltaSeconds)
+{
+	if (!StateTreeAsset) return;
+
+	FStateTreeExecutionContext Context(*this, *StateTreeAsset, StateTreeInstanceData);
+	if (!SetStateTreeContext(Context)) return;
+
+	Context.Tick(DeltaSeconds);
+}
+
+bool UContentConductor::SetStateTreeContext(FStateTreeExecutionContext& Context)
+{
+	return UConductorStateTreeSchema::SetContextRequirements(*this, Context, true);
+}
+
+TSet<FName> UContentConductor::CollectTreePhases() const
+{
+	TSet<FName> Phases;
+	if (!StateTreeAsset) return Phases;
+
+	// フェーズ名はステート名ではなく「フェーズを適用」タスクのパラメータなので、
+	// コンパイル済みツリーの既定インスタンスデータから拾う
+	const FStateTreeInstanceData& Default = StateTreeAsset->GetDefaultInstanceData();
+	for (int32 Index = 0; Index < Default.Num(); ++Index)
+	{
+		const FConductorTask_ApplyPhaseInstanceData* Data =
+			Default.GetStruct(Index).GetPtr<const FConductorTask_ApplyPhaseInstanceData>();
+		if (!Data || Data->Phase.IsNone()) continue;
+
+		Phases.Add(Data->Phase);
+	}
+
+	return Phases;
 }
 
 void UContentConductor::ValidateData() const
 {
 	const FString Content = ContentId.ToString();
 
-	if (!PhaseSet)
+	if (!StateTreeAsset)
 	{
-		UE_SCREEN_LOG_ERROR(this, TEXT("%s: PhaseSetが未設定"), *Content);
-		return;
-	}
-
-	if (PhaseSet->Phases.IsEmpty())
-	{
-		UE_SCREEN_LOG_ERROR(this, TEXT("%s: フェーズ定義が空"), *Content);
-		return;
-	}
-
-	if (!PhaseSet->Phases.Contains(PhaseSet->InitialPhase))
-	{
-		UE_SCREEN_LOG_ERROR(this, TEXT("%s: 開始フェーズ %s が定義に無い"), *Content, *PhaseSet->InitialPhase.ToString());
-	}
-
-	for (const TPair<FName, FContentConductorPhase>& Pair : PhaseSet->Phases)
-	{
-		const FString Phase = Pair.Key.ToString();
-
-		for (int32 Index = 0; Index < Pair.Value.EntryActions.Num(); ++Index)
-		{
-			if (Pair.Value.EntryActions[Index]) continue;
-
-			UE_SCREEN_LOG_WARNING(this, TEXT("%s/%s: アクション[%d]が未設定"), *Content, *Phase, Index);
-		}
-
-		for (int32 Index = 0; Index < Pair.Value.Transitions.Num(); ++Index)
-		{
-			const FConductorPhaseTransition& Transition = Pair.Value.Transitions[Index];
-
-			if (!Transition.Condition)
-			{
-				UE_SCREEN_LOG_WARNING(this, TEXT("%s/%s: 遷移[%d]の条件が未設定 (永遠に成立しない)"), *Content, *Phase, Index);
-			}
-
-			if (Transition.NextPhase.IsNone())
-			{
-				UE_SCREEN_LOG_WARNING(this, TEXT("%s/%s: 遷移[%d]の遷移先が未設定"), *Content, *Phase, Index);
-			}
-			else if (!PhaseSet->Phases.Contains(Transition.NextPhase))
-			{
-				UE_SCREEN_LOG_ERROR(this, TEXT("%s/%s: 遷移[%d]の遷移先 %s が定義に無い (入ると停止する)"), *Content, *Phase, Index, *Transition.NextPhase.ToString());
-			}
-		}
-	}
-
-	// InitialPhaseから辿れるか
-	TSet<FName> Reached;
-	TArray<FName> Pending;
-
-	if (PhaseSet->Phases.Contains(PhaseSet->InitialPhase))
-	{
-		Reached.Add(PhaseSet->InitialPhase);
-		Pending.Add(PhaseSet->InitialPhase);
-	}
-
-	while (!Pending.IsEmpty())
-	{
-		const FContentConductorPhase& PhaseDef = PhaseSet->Phases.FindChecked(Pending.Pop());
-
-		for (const FConductorPhaseTransition& Transition : PhaseDef.Transitions)
-		{
-			if (!PhaseSet->Phases.Contains(Transition.NextPhase)) continue;
-
-			bool bAlready = false;
-			Reached.Add(Transition.NextPhase, &bAlready);
-			if (bAlready) continue;
-
-			Pending.Add(Transition.NextPhase);
-		}
-	}
-
-	for (const TPair<FName, FContentConductorPhase>& Pair : PhaseSet->Phases)
-	{
-		if (Reached.Contains(Pair.Key)) continue;
-
-		UE_SCREEN_LOG_WARNING(this, TEXT("%s: フェーズ %s への経路が無い (RequestPhase専用なら問題なし)"), *Content, *Pair.Key.ToString());
+		UE_SCREEN_LOG_ERROR(this, TEXT("%s: フェーズ定義(StateTree)が未設定"), *Content);
 	}
 
 	if (!ActorTable) return;
+
+	const TSet<FName> TreePhases = CollectTreePhases();
+
+	// 取れない場合は突き合わせを飛ばす (タスク未配置か、ツリーの内部表現が変わった場合)
+	if (StateTreeAsset && TreePhases.IsEmpty())
+	{
+		UE_SCREEN_LOG_WARNING(this, TEXT("%s: ツリーからフェーズ名を取得できない (「フェーズを適用」タスクが置かれているか確認)"), *Content);
+	}
 
 	ActorTable->ForeachRow<FConductorActorRow>(
 		TEXT("UContentConductor::ValidateData"),
@@ -415,9 +259,9 @@ void UContentConductor::ValidateData() const
 			TSet<FName> Seen;
 			for (const FConductorActorPhaseEntry& Entry : Row.Phases)
 			{
-				if (!PhaseSet->Phases.Contains(Entry.Phase))
+				if (!TreePhases.IsEmpty() && !TreePhases.Contains(Entry.Phase))
 				{
-					UE_SCREEN_LOG_WARNING(this, TEXT("%s/%s: フェーズ %s が定義に無い (適用されない)"), *Content, *Actor, *Entry.Phase.ToString());
+					UE_SCREEN_LOG_WARNING(this, TEXT("%s/%s: フェーズ %s がツリーに無い (適用されない)"), *Content, *Actor, *Entry.Phase.ToString());
 				}
 
 				bool bAlready = false;
@@ -504,6 +348,16 @@ AActor* UContentConductor::ResolvePlacedActor(FName ActorId)
 	const TWeakObjectPtr<AActor>* Cached = PlacedActors.Find(ActorId);
 
 	return Cached && Cached->IsValid() ? Cached->Get() : nullptr;
+}
+
+void UContentConductor::EnsureActorsScanned()
+{
+	if (bActorsScanned) return;
+
+	bActorsScanned = true;
+
+	ScanPlacedActors();
+	VerifyPlacedActors();
 }
 
 void UContentConductor::ScanPlacedActors()

@@ -8,7 +8,7 @@
 
 class UContentConductor;
 class UContentConductorModule;
-class UContentConductorPhaseSet;
+class UStateTree;
 
 /**
  * コンテンツの定義 行名をContentIdとする
@@ -19,7 +19,7 @@ struct FContentConductorRow : public FTableRowBase
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, meta = (DisplayName = "フェーズ定義"))
-	TSoftObjectPtr<UContentConductorPhaseSet> PhaseSet;
+	TSoftObjectPtr<UStateTree> StateTree;
 
 	UPROPERTY(EditAnywhere, meta = (DisplayName = "このコンテンツが制御するアクター"))
 	TSoftObjectPtr<UDataTable> ActorTable;

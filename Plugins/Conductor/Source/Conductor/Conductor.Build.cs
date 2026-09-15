@@ -12,7 +12,9 @@ public class Conductor : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
-			"DeveloperSettings"
+			"DeveloperSettings",
+			"GameplayTags",
+			"StateTreeModule"
 			]);
 	}
 }
