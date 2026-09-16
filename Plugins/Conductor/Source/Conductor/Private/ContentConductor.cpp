@@ -211,8 +211,7 @@ TSet<FName> UContentConductor::CollectTreePhases() const
 	const FStateTreeInstanceData& Default = StateTreeAsset->GetDefaultInstanceData();
 	for (int32 Index = 0; Index < Default.Num(); ++Index)
 	{
-		const FConductorTask_ApplyPhaseInstanceData* Data =
-			Default.GetStruct(Index).GetPtr<const FConductorTask_ApplyPhaseInstanceData>();
+		const FConductorTask_ApplyPhaseInstanceData* Data = Default.GetStruct(Index).GetPtr<const FConductorTask_ApplyPhaseInstanceData>();
 		if (!Data || Data->Phase.IsNone()) continue;
 
 		Phases.Add(Data->Phase);
@@ -234,7 +233,6 @@ void UContentConductor::ValidateData() const
 
 	const TSet<FName> TreePhases = CollectTreePhases();
 
-	// 取れない場合は突き合わせを飛ばす (タスク未配置か、ツリーの内部表現が変わった場合)
 	if (StateTreeAsset && TreePhases.IsEmpty())
 	{
 		UE_SCREEN_LOG_WARNING(this, TEXT("%s: ツリーからフェーズ名を取得できない (「フェーズを適用」タスクが置かれているか確認)"), *Content);

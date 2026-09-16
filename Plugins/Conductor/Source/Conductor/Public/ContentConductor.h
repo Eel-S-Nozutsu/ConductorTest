@@ -18,7 +18,6 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnContentPhaseChanged, UContentConductor
 
 /**
  * 1コンテンツの進行役
- * フェーズ遷移はStateTreeが持ち、ここはその器とアクターの面倒を見る
  */
 UCLASS(BlueprintType)
 class CONDUCTOR_API UContentConductor : public UConductorObjectBase
@@ -46,16 +45,20 @@ public:
 		return Cast<T>(FindModuleByClass(T::StaticClass()));
 	}
 
+	// ActorIdに対応するアクターを返す
 	UFUNCTION(BlueprintCallable)
 	AActor* FindManagedActor(FName ActorId);
 
+	// GroupIdに所属するグループのアクターを返す
 	UFUNCTION(BlueprintCallable)
 	TArray<AActor*> GetGroupActors(FName GroupId);
 
-	// ツリーのタスクから呼ぶ フェーズの実体(アクター表とモジュール通知)を当てる
+	// フェーズ開始 ツリーのタスクから呼ばれる
 	void EnterPhase(FName NewPhase);
+	// フェーズ終了 ツリーのタスクから呼ばれる
 	void ExitPhase(FName Phase);
 
+	// ツリーにイベントを送る
 	UFUNCTION(BlueprintCallable)
 	void SendStateTreeEvent(FGameplayTag Tag);
 
@@ -71,8 +74,6 @@ private:
 	void TickStateTree(float DeltaSeconds);
 	bool SetStateTreeContext(FStateTreeExecutionContext& Context);
 
-	// 最初にフェーズが適用された時点で1回だけ集める
-	// 以降は集め直さないので、対象アクターは bIsSpatiallyLoaded = false にすること
 	void EnsureActorsScanned();
 	void ScanPlacedActors();
 	void VerifyPlacedActors() const;
@@ -105,7 +106,7 @@ private:
 	FName ContentId;
 	FName CurrentPhase;
 
-	// ツリーはExitStateを先に流すので、次のEnterまで直前のフェーズを預かる
+	// ツリーはExitStateを先に流すので 次のEnterまで直前のフェーズを保持
 	FName ExitedPhase;
 
 	bool bStarted		= false;

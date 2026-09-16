@@ -7,7 +7,7 @@
 #include "ConductorActorRow.generated.h"
 
 /**
- * 状態(居方)
+ * 状態(居方) todo: インターフェースにしてapp側から拡張できるようにする
  */
 UENUM(BlueprintType)
 enum class EConductorActorState : uint8

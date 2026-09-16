@@ -7,21 +7,19 @@
 #include "ConductorStateTreeTasks.generated.h"
 
 /**
- * フェーズ適用タスクのインスタンスデータ
+ * FConductorTask_ApplyPhase用 インスタンスデータ
  */
 USTRUCT()
 struct FConductorTask_ApplyPhaseInstanceData
 {
 	GENERATED_BODY()
 
-	// アクター表(DT_ActorList)のフェーズ名と一致させる
-	UPROPERTY(EditAnywhere, Category = "Parameter", meta = (DisplayName = "フェーズ名"))
+	UPROPERTY(EditAnywhere, meta = (DisplayName = "フェーズ名"))
 	FName Phase;
 };
 
 /**
- * このステートに居る間、アクター表のそのフェーズの状態を当てる
- * Conductor側のアクター管理とStateTreeのステートを繋ぐ唯一の橋
+ * このステート中フェーズの状態を適用
  */
 USTRUCT(meta = (DisplayName = "フェーズを適用", Category = "Conductor"))
 struct CONDUCTOR_API FConductorTask_ApplyPhase : public FStateTreeTaskCommonBase
@@ -32,21 +30,29 @@ struct CONDUCTOR_API FConductorTask_ApplyPhase : public FStateTreeTaskCommonBase
 
 	FConductorTask_ApplyPhase();
 
-	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override
+	{
+		return FInstanceDataType::StaticStruct();
+	}
 
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus EnterState(
+		FStateTreeExecutionContext& Context,
+		const FStateTreeTransitionResult& Transition) const override;
+
+	virtual void ExitState(
+		FStateTreeExecutionContext& Context,
+		const FStateTreeTransitionResult& Transition) const override;
 };
 
 /**
- * ログ出力タスクのインスタンスデータ
+ * FConductorTask_Log用 インスタンスデータ
  */
 USTRUCT()
 struct FConductorTask_LogInstanceData
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Parameter", meta = (DisplayName = "出力するログ"))
+	UPROPERTY(EditAnywhere, meta = (DisplayName = "出力するログ"))
 	FString Message;
 };
 
@@ -62,7 +68,12 @@ struct CONDUCTOR_API FConductorTask_Log : public FStateTreeTaskCommonBase
 
 	FConductorTask_Log();
 
-	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override
+	{
+		return FInstanceDataType::StaticStruct();
+	}
 
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus EnterState(
+		FStateTreeExecutionContext& Context,
+		const FStateTreeTransitionResult& Transition) const override;
 };

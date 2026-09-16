@@ -14,7 +14,8 @@ FConductorTask_ApplyPhase::FConductorTask_ApplyPhase()
 	bShouldCallTick = false;
 }
 
-EStateTreeRunStatus FConductorTask_ApplyPhase::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FConductorTask_ApplyPhase::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	const FInstanceDataType& Data = Context.GetInstanceData(*this);
 
@@ -26,7 +27,8 @@ EStateTreeRunStatus FConductorTask_ApplyPhase::EnterState(FStateTreeExecutionCon
 	return EStateTreeRunStatus::Running;
 }
 
-void FConductorTask_ApplyPhase::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+void FConductorTask_ApplyPhase::ExitState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	const FInstanceDataType& Data = Context.GetInstanceData(*this);
 
@@ -43,7 +45,8 @@ FConductorTask_Log::FConductorTask_Log()
 	bShouldCallTick = false;
 }
 
-EStateTreeRunStatus FConductorTask_Log::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FConductorTask_Log::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	const FInstanceDataType& Data = Context.GetInstanceData(*this);
 

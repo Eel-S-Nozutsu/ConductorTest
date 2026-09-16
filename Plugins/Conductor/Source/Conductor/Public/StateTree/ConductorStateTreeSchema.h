@@ -11,8 +11,7 @@ class UContentConductor;
 struct FStateTreeExecutionContext;
 
 /**
- * ContentConductorが回すStateTreeのスキーマ
- * コンテキストとしてContentConductor自身を差す
+ * ContentConductor用 StateTreeスキーマ
  */
 UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "Conductor Content", CommonSchema))
 class CONDUCTOR_API UConductorStateTreeSchema : public UStateTreeSchema
@@ -22,11 +21,11 @@ class CONDUCTOR_API UConductorStateTreeSchema : public UStateTreeSchema
 public:
 	UConductorStateTreeSchema();
 
-	// ホストとノードで同じ名前を使うのでここに置く
 	static const FName ContextName_Conductor;
 
-	// ホストがコンテキストを差し込む 揃っていればtrue
-	static bool SetContextRequirements(UContentConductor& Conductor, FStateTreeExecutionContext& Context, bool bLogErrors = false);
+	// ホストがコンテキストを設定 揃っていればtrue
+	static bool SetContextRequirements(
+		UContentConductor& Conductor, FStateTreeExecutionContext& Context, bool bLogErrors = false);
 
 protected:
 	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const override;

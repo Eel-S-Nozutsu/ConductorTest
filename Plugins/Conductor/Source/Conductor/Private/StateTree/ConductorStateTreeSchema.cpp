@@ -15,8 +15,9 @@
 const FName UConductorStateTreeSchema::ContextName_Conductor = FName(TEXT("Conductor"));
 
 UConductorStateTreeSchema::UConductorStateTreeSchema()
-	// Guidはアセットのバインドが差すIDになるので、後から変えると既存アセットの線が切れる
-	: ContextDataDescs({ { ContextName_Conductor, UContentConductor::StaticClass(), FGuid(0x7C4A1E20, 0x38F04B96, 0xA1D25C07, 0x6E930B44) } })
+	: ContextDataDescs({{ContextName_Conductor,
+						 UContentConductor::StaticClass(),
+						 FGuid(0x7C4A1E20, 0x38F04B96, 0xA1D25C07, 0x6E930B44)}})
 {
 }
 
@@ -45,7 +46,8 @@ TConstArrayView<FStateTreeExternalDataDesc> UConductorStateTreeSchema::GetContex
 	return ContextDataDescs;
 }
 
-bool UConductorStateTreeSchema::SetContextRequirements(UContentConductor& Conductor, FStateTreeExecutionContext& Context, bool bLogErrors)
+bool UConductorStateTreeSchema::SetContextRequirements(
+	UContentConductor& Conductor, FStateTreeExecutionContext& Context, bool bLogErrors)
 {
 	if (!Context.IsValid()) return false;
 
