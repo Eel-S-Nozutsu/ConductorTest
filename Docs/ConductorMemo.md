@@ -4,18 +4,10 @@
 
 ## 拡張ポイント
 
-### Module の指定方法
-- 現状は `TSubclassOf<UContentConductorModule>` / `TSubclassOf<UMapConductorModule>` (Row の `Modules`)
-- パラメータ違いはコンテンツごとに BP サブクラスを作る運用 (例: `BP_CCModule_Shine_A`)
-- C++ の汎用 Module を設定値だけ変えて使い回したくなったら、`Instanced` + `EditInlineNew` のインスタンス指定に変える
-- ただし Module は DataTable の行 (`FContentConductorRow`) にあるので、Instanced UObject は載らない (行エディタが構造体スコープのため)
-- その場合は StateTree のタスク側に寄せるか、Module だけ別アセットに出すかの判断が先に必要
-- 変えるとアセット形式が変わるので、使用箇所が増える前に判断したい
-
-### アクター状態制御の拡張 (AI 停止など)
-- `UContentConductor::ApplyState` は HiddenInGame / Collision / Tick の3つだけを操作していて、アプリ側から拡張できない
-- 「AI を止めたい」のような要望が出たら、`IConductorActor` のようなインターフェースで状態変化を通知し、アクター側で反応できるようにする
-- 後から足しても互換性は壊れない
+### Module の指定方法 (決定: TSubclassOf のまま)
+- Module は実装を書く場所なので、パラメータ違いで増えるのではなく実装ごとに BP アセットを作るのが自然 (例: `BP_CCModule_Shine_A`)
+- よって Condition / PhaseAction でやったような `Instanced` 化はしない
+- 技術的にも、Module は DataTable の行 (`FContentConductorRow`) にあるため Instanced UObject は載らない (行エディタが構造体スコープのため)
 
 ## UContentConductor の分割
 - `ContentConductor.cpp` が約485行で一番大きい
@@ -32,7 +24,7 @@
 - 呼び出し順 (アクター適用 → Module 通知) は進行役の責務なので Conductor 側に残す
 - Module にはしない (Module はアプリ側が付け外しする拡張部品で、必須機能の置き場ではない)
 - `UContentConductor` は実行時生成のみで保存されないため、アセットへの影響・リダイレクトは不要
-- 上の「アクター状態制御の拡張」や、下の「デバッグ表示」の getter の置き場もこのクラスになる
+- 下の「デバッグ表示」の getter の置き場もこのクラスになる
 - クラス名は未定 (案: `UConductorActorController`)
 
 ### データ検証を切り出す (第二候補)
