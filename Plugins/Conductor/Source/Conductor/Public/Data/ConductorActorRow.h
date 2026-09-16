@@ -7,21 +7,23 @@
 #include "ConductorActorRow.generated.h"
 
 /**
- * 状態(居方) todo: インターフェースにしてapp側から拡張できるようにする
+ * 状態(居方)
+ * ここに書いてあるのはコンダクタが当てる既定の挙動
+ * それ以外の反応 (AI停止など) は IConductorActorInterface でアクター側に書く
  */
 UENUM(BlueprintType)
 enum class EConductorActorState : uint8
 {
-	// HiddeninGame(false), Collision(true), Tick(true)
+	// HiddenInGame(false), Collision(true), Tick(true)
 	Active UMETA(DisplayName = "出す"),
 
-	// HiddeninGame(true), Collision(false), Tick(true)
+	// HiddenInGame(true), Collision(false), Tick(true)
 	Hidden UMETA(DisplayName = "隠す"),
 
-	// HiddeninGame(false), Collision(true), Tick(false)
+	// HiddenInGame(false), Collision(true), Tick(false)
 	Frozen UMETA(DisplayName = "止める"),
 
-	// HiddeninGame(true), Collision(false), Tick(false)
+	// HiddenInGame(true), Collision(false), Tick(false)
 	Removed UMETA(DisplayName = "片づける"),
 };
 

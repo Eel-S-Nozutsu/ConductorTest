@@ -3,6 +3,7 @@
 #include "ContentConductor.h"
 
 #include "ConductorModule.h"
+#include "ConductorActorInterface.h"
 #include "ConductorIdComponent.h"
 #include "Data/ContentConductorRow.h"
 #include "StateTree/ConductorStateTreeSchema.h"
@@ -293,22 +294,10 @@ void UContentConductor::ApplyActorsForPhase(FName Phase)
 
 void UContentConductor::ApplyState(FName ActorId, const FConductorActorRow& Row, EConductorActorState State)
 {
-	if (State == EConductorActorState::Removed)
+	if (State == EConductorActorState::Removed && Row.SpawnClass)
 	{
-		if (Row.SpawnClass)
-		{
-			DestroySpawned(ActorId);
-			return;
-		}
-
-		if (AActor* Placed = ResolvePlacedActor(ActorId))
-		{
-			Placed->SetActorHiddenInGame(true);
-			Placed->SetActorEnableCollision(false);
-			Placed->SetActorTickEnabled(false);
-		}
-
-		return;
+		DestroySpawned(ActorId);
+		return; // 生成物のRemovedは破棄なので通知なし
 	}
 
 	AActor* Actor = Row.SpawnClass ? EnsureSpawned(ActorId, Row) : ResolvePlacedActor(ActorId);
@@ -329,6 +318,11 @@ void UContentConductor::ApplyState(FName ActorId, const FConductorActorRow& Row,
 	case EConductorActorState::Frozen:
 		bTick = false;
 		break;
+	case EConductorActorState::Removed:
+		bHidden	   = true;
+		bCollision = false;
+		bTick	   = false;
+		break;
 	default:
 		checkNoEntry();
 		break;
@@ -337,6 +331,11 @@ void UContentConductor::ApplyState(FName ActorId, const FConductorActorRow& Row,
 	Actor->SetActorHiddenInGame(bHidden);
 	Actor->SetActorEnableCollision(bCollision);
 	Actor->SetActorTickEnabled(bTick);
+
+	if (Actor->Implements<UConductorActorInterface>())
+	{
+		IConductorActorInterface::Execute_OnConductorStateChanged(Actor, State);
+	}
 }
 
 AActor* UContentConductor::ResolvePlacedActor(FName ActorId)
